@@ -1,0 +1,97 @@
+diff --git a/vm_insnhelper.c b/vm_insnhelper.c
+index 4f566d2..d12a538 100644
+--- a/vm_insnhelper.c
++++ b/vm_insnhelper.c
+@@ -431,19 +431,49 @@ vm_push_frame(rb_execution_context_t *ec,
+     vm_push_frame_debug_counter_inc(ec, cfp, type);
+ }
+ 
++#ifdef __FILC__
++static inline VALUE *vm_base_ptr(const rb_control_frame_t *cfp);
++
++static inline VALUE *
++vm_frame_stack_end(const rb_control_frame_t *cfp)
++{
++    VALUE *end = cfp->sp;
++    if (cfp->iseq && VM_FRAME_RUBYFRAME_P(cfp) && VM_FRAME_TYPE(cfp) != VM_FRAME_MAGIC_DUMMY) {
++        VALUE *limit = vm_base_ptr(cfp) + ISEQ_BODY(cfp->iseq)->stack_max;
++        if (limit > end) end = limit;
++    }
++    return end;
++}
++
++static inline void
++vm_clear_popped_frame(rb_execution_context_t *ec, rb_control_frame_t *cfp, VALUE *end)
++{
++    VALUE *start = (VALUE *)ec->cfp == ec->vm_stack + ec->vm_stack_size ? ec->vm_stack : ec->cfp->sp;
++    VM_ASSERT(start <= end);
++    if (end > start) memset(start, 0, (end - start) * sizeof(VALUE));
++    memset(cfp, 0, sizeof(*cfp));
++}
++#endif
++
+ void
+ rb_vm_pop_frame_no_int(rb_execution_context_t *ec)
+ {
+     rb_control_frame_t *cfp = ec->cfp;
++#ifdef __FILC__
++    VALUE *end = vm_frame_stack_end(cfp);
++#endif
+ 
+     if (VMDEBUG == 2)       SDR();
+ 
+     ec->cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp);
++#ifdef __FILC__
++    vm_clear_popped_frame(ec, cfp, end);
++#endif
+ }
+ 
+ /* return TRUE if the frame is finished */
+ static inline int
+-vm_pop_frame(rb_execution_context_t *ec, rb_control_frame_t *cfp, const VALUE *ep)
++vm_pop_frame_preserving_stack(rb_execution_context_t *ec, rb_control_frame_t *cfp, const VALUE *ep)
+ {
+     VALUE flags = ep[VM_ENV_DATA_INDEX_FLAGS];
+ 
+@@ -455,6 +485,19 @@ vm_pop_frame(rb_execution_context_t *ec, rb_control_frame_t *cfp, const VALUE *e
+     return (uintptr_t)flags & VM_FRAME_FLAG_FINISH;
+ }
+ 
++static inline int
++vm_pop_frame(rb_execution_context_t *ec, rb_control_frame_t *cfp, const VALUE *ep)
++{
++#ifdef __FILC__
++    VALUE *end = vm_frame_stack_end(cfp);
++#endif
++    int finished = vm_pop_frame_preserving_stack(ec, cfp, ep);
++#ifdef __FILC__
++    vm_clear_popped_frame(ec, cfp, end);
++#endif
++    return finished;
++}
++
+ void
+ rb_vm_pop_frame(rb_execution_context_t *ec)
+ {
+@@ -3541,7 +3584,10 @@ vm_call_iseq_setup_tailcall(rb_execution_context_t *ec, rb_control_frame_t *cfp,
+         }
+     }
+ 
+-    vm_pop_frame(ec, cfp, cfp->ep);
++#ifdef __FILC__
++    VALUE *end = vm_frame_stack_end(cfp);
++#endif
++    vm_pop_frame_preserving_stack(ec, cfp, cfp->ep);
+     cfp = ec->cfp;
+ 
+     sp_orig = sp = cfp->sp;
+@@ -3562,6 +3608,9 @@ vm_push_frame(ec, iseq, (VALUE)(VM_FRAME_MAGIC_METHOD | VM_ENV_FLAG_LOCAL | fini
+                   ISEQ_BODY(iseq)->stack_max);
+ 
+     cfp->sp = sp_orig;
++#ifdef __FILC__
++    if (end > ec->cfp->sp) memset(ec->cfp->sp, 0, (end - ec->cfp->sp) * sizeof(VALUE));
++#endif
+ 
+     return Qundef;
+ }

@@ -1,0 +1,126 @@
+--- a/test/bioprinttest.c
++++ b/test/bioprinttest.c
+@@ -414,31 +414,35 @@
+     memset(bio_buf, '@', sizeof(bio_buf));
+     memset(std_buf, '#', sizeof(std_buf));
+ 
++#define WP_PRINT(function, ...) \
++    (strchr(data->format, 's') != NULL \
++        ? function(__VA_ARGS__, data->value.s) \
++        : function(__VA_ARGS__, data->value.i))
++
+     switch (data->num_args) {
+     case 2:
+-        bio_ret = BIO_snprintf(bio_buf, sizeof(bio_buf), data->format,
+-            data->arg1, data->arg2, data->value.i);
++        bio_ret = WP_PRINT(BIO_snprintf, bio_buf, sizeof(bio_buf), data->format,
++            data->arg1, data->arg2);
+         if (!data->skip_libc_check)
+-            std_ret = snprintf(std_buf, sizeof(std_buf), data->format,
+-                data->arg1, data->arg2, data->value.i);
++            std_ret = WP_PRINT(snprintf, std_buf, sizeof(std_buf), data->format,
++                data->arg1, data->arg2);
+         break;
+ 
+     case 1:
+-        bio_ret = BIO_snprintf(bio_buf, sizeof(bio_buf), data->format,
+-            data->arg1, data->value.i);
++        bio_ret = WP_PRINT(BIO_snprintf, bio_buf, sizeof(bio_buf), data->format,
++            data->arg1);
+         if (!data->skip_libc_check)
+-            std_ret = snprintf(std_buf, sizeof(std_buf), data->format,
+-                data->arg1, data->value.i);
++            std_ret = WP_PRINT(snprintf, std_buf, sizeof(std_buf), data->format,
++                data->arg1);
+         break;
+ 
+     case 0:
+     default:
+-        bio_ret = BIO_snprintf(bio_buf, sizeof(bio_buf), data->format,
+-            data->value.i);
++        bio_ret = WP_PRINT(BIO_snprintf, bio_buf, sizeof(bio_buf), data->format);
+         if (!data->skip_libc_check)
+-            std_ret = snprintf(std_buf, sizeof(std_buf), data->format,
+-                data->value.i);
+-    }
++            std_ret = WP_PRINT(snprintf, std_buf, sizeof(std_buf), data->format);
++    }
++#undef WP_PRINT
+ 
+     if (!TEST_str_eq(bio_buf, data->expected)
+         + !TEST_int_eq(bio_ret, exp_ret)) {
+@@ -496,10 +500,10 @@
+         AT_CHAR, 16, AT_INT, { .i = 1234567890 },
+         .skip_libc_ret_check = true, .exp_ret = -1 },
+     { "%.0s%hn0987654321", "0987654321",
+-        AT_SHORT, 0, AT_INT, { .s = "1234567890" } },
++        AT_SHORT, 0, AT_STR, { .s = "1234567890" } },
+     { "%-123456s%hn0987654321",
+         "1234567890                                                     ",
+-        AT_SHORT, -7616, AT_INT, { .s = "1234567890" },
++        AT_SHORT, -7616, AT_STR, { .s = "1234567890" },
+         .skip_libc_ret_check = true, .exp_ret = -1 },
+     { "%1234567898.1234567890" PRIxPTR "%n",
+         "        0000000000000000000000000000000000000000000000000000000",
+@@ -596,29 +600,29 @@
+     memset(std_buf, '#', sizeof(std_buf));
+ 
+     switch (data->n_type) {
+-#define DO_PRINT(field_)                                                   \
+-    do {                                                                   \
+-        if (data->arg1_type == AT_NONE) {                                  \
+-            bio_ret = BIO_snprintf(bio_buf, sizeof(bio_buf), data->format, \
+-                &n.field_);                                                \
+-            if (!skip_libc_check)                                          \
+-                std_ret = snprintf(std_buf, sizeof(std_buf), data->format, \
+-                    &std_n.field_);                                        \
+-        } else if (data->arg2_type == AT_NONE) {                           \
+-            bio_ret = BIO_snprintf(bio_buf, sizeof(bio_buf), data->format, \
+-                data->arg1.i, &n.field_);                                  \
+-            if (!skip_libc_check)                                          \
+-                std_ret = snprintf(std_buf, sizeof(std_buf), data->format, \
+-                    data->arg1.i, &std_n.field_);                          \
+-        } else {                                                           \
+-            bio_ret = BIO_snprintf(bio_buf, sizeof(bio_buf), data->format, \
+-                data->arg1.i, data->arg2.i, &n.field_);                    \
+-            if (!skip_libc_check)                                          \
+-                std_ret = snprintf(std_buf, sizeof(std_buf), data->format, \
+-                    data->arg1.i, data->arg2.i, &std_n.field_);            \
+-        }                                                                  \
+-        n.val = n.field_;                                                  \
+-        std_n.val = std_n.field_;                                          \
++#define PRINT_N(function, buffer, ...) \
++    function(buffer, sizeof(buffer), data->format, __VA_ARGS__)
++#define PRINT_ARGS(function, buffer, count) \
++    (data->arg1_type == AT_NONE \
++        ? PRINT_N(function, buffer, count) \
++        : data->arg2_type == AT_NONE \
++            ? (data->arg1_type == AT_STR \
++                  ? PRINT_N(function, buffer, data->arg1.s, count) \
++                  : PRINT_N(function, buffer, data->arg1.i, count)) \
++            : data->arg1_type == AT_STR \
++                ? (data->arg2_type == AT_STR \
++                      ? PRINT_N(function, buffer, data->arg1.s, data->arg2.s, count) \
++                      : PRINT_N(function, buffer, data->arg1.s, data->arg2.i, count)) \
++                : (data->arg2_type == AT_STR \
++                      ? PRINT_N(function, buffer, data->arg1.i, data->arg2.s, count) \
++                      : PRINT_N(function, buffer, data->arg1.i, data->arg2.i, count)))
++#define DO_PRINT(field_) \
++    do { \
++        bio_ret = PRINT_ARGS(BIO_snprintf, bio_buf, &n.field_); \
++        if (!skip_libc_check) \
++            std_ret = PRINT_ARGS(snprintf, std_buf, &std_n.field_); \
++        n.val = n.field_; \
++        std_n.val = std_n.field_; \
+     } while (0)
+     case AT_CHAR:
+         DO_PRINT(hh);
+@@ -645,6 +649,8 @@
+         TEST_error("Unexpected arg type: %d", data->n_type);
+         return 0;
+ #undef DO_PRINT
++#undef PRINT_ARGS
++#undef PRINT_N
+     }
+ 
+     if (!TEST_str_eq(bio_buf, data->expected)

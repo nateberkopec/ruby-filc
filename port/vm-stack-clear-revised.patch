@@ -1,0 +1,171 @@
+diff --git a/vm.c b/vm.c
+index 1002a27..a86eff2 100644
+--- a/vm.c
++++ b/vm.c
+@@ -3987,14 +3987,28 @@ rb_thread_alloc(VALUE klass)
+     return self;
+ }
+ 
++#ifdef __FILC__
+ #define REWIND_CFP(expr) do { \
+     rb_execution_context_t *ec__ = GET_EC(); \
++    rb_control_frame_t saved_cfp = *ec__->cfp; \
+     VALUE *const curr_sp = (ec__->cfp++)->sp; \
+     VALUE *const saved_sp = ec__->cfp->sp; \
+     ec__->cfp->sp = curr_sp; \
+     expr; \
++    *RUBY_VM_NEXT_CONTROL_FRAME(ec__->cfp) = saved_cfp; \
++    atomic_signal_fence(memory_order_seq_cst); \
+     (ec__->cfp--)->sp = saved_sp; \
+ } while (0)
++#else
++#define REWIND_CFP(expr) do { \
++    rb_execution_context_t *ec__ = GET_EC(); \
++    VALUE *const curr_sp = (ec__->cfp++)->sp; \
++    VALUE *const saved_sp = ec__->cfp->sp; \
++    ec__->cfp->sp = curr_sp; \
++    expr; \
++    (ec__->cfp--)->sp = saved_sp; \
++} while (0)
++#endif
+ 
+ static VALUE
+ m_core_set_method_alias(VALUE self, VALUE cbase, VALUE sym1, VALUE sym2)
+diff --git a/vm_core.h b/vm_core.h
+index f880082..1d9e7c4 100644
+--- a/vm_core.h
++++ b/vm_core.h
+@@ -2022,11 +2022,17 @@ const rb_callable_method_entry_t *rb_vm_frame_method_entry_unchecked(const rb_co
+ 
+ #define sysstack_error GET_VM()->special_exceptions[ruby_error_sysstack]
+ 
++static inline bool
++vm_stack_overflow_p(const rb_control_frame_t *cfp, const VALUE *sp, ptrdiff_t margin)
++{
++    const rb_control_frame_t *bound = (const void *)&sp[margin];
++    return cfp <= &bound[1];
++}
++
+ #define CHECK_VM_STACK_OVERFLOW0(cfp, sp, margin) do {                       \
+     STATIC_ASSERT(sizeof_sp,  sizeof(*(sp))  == sizeof(VALUE));              \
+     STATIC_ASSERT(sizeof_cfp, sizeof(*(cfp)) == sizeof(rb_control_frame_t)); \
+-    const struct rb_control_frame_struct *bound = (void *)&(sp)[(margin)];   \
+-    if (UNLIKELY((cfp) <= &bound[1])) {                                      \
++    if (UNLIKELY(vm_stack_overflow_p((cfp), (sp), (margin)))) {              \
+         vm_stackoverflow();                                                  \
+     }                                                                        \
+ } while (0)
+diff --git a/vm_insnhelper.c b/vm_insnhelper.c
+index 4f566d2..ac3b4ef 100644
+--- a/vm_insnhelper.c
++++ b/vm_insnhelper.c
+@@ -431,19 +431,50 @@ vm_push_frame(rb_execution_context_t *ec,
+     vm_push_frame_debug_counter_inc(ec, cfp, type);
+ }
+ 
++#ifdef __FILC__
++static inline VALUE *vm_base_ptr(const rb_control_frame_t *cfp);
++
++static inline VALUE *
++vm_frame_stack_end(const rb_control_frame_t *cfp)
++{
++    VALUE *end = cfp->sp;
++    if (cfp->iseq && VM_FRAME_RUBYFRAME_P(cfp) && VM_FRAME_TYPE(cfp) != VM_FRAME_MAGIC_DUMMY) {
++        VALUE *limit = vm_base_ptr(cfp) + ISEQ_BODY(cfp->iseq)->stack_max;
++        if (limit > end) end = limit;
++    }
++    return end;
++}
++
++static inline void
++vm_clear_popped_frame(rb_execution_context_t *ec, rb_control_frame_t *cfp, VALUE *end)
++{
++    VALUE *start = (VALUE *)ec->cfp == ec->vm_stack + ec->vm_stack_size ? ec->vm_stack : ec->cfp->sp;
++    VM_ASSERT(start <= end);
++    VM_ASSERT(end <= (VALUE *)cfp);
++    if (end > start) memset(start, 0, (end - start) * sizeof(VALUE));
++    memset(cfp, 0, sizeof(*cfp));
++}
++#endif
++
+ void
+ rb_vm_pop_frame_no_int(rb_execution_context_t *ec)
+ {
+     rb_control_frame_t *cfp = ec->cfp;
++#ifdef __FILC__
++    VALUE *end = vm_frame_stack_end(cfp);
++#endif
+ 
+     if (VMDEBUG == 2)       SDR();
+ 
+     ec->cfp = RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp);
++#ifdef __FILC__
++    vm_clear_popped_frame(ec, cfp, end);
++#endif
+ }
+ 
+ /* return TRUE if the frame is finished */
+ static inline int
+-vm_pop_frame(rb_execution_context_t *ec, rb_control_frame_t *cfp, const VALUE *ep)
++vm_pop_frame_preserving_stack(rb_execution_context_t *ec, rb_control_frame_t *cfp, const VALUE *ep)
+ {
+     VALUE flags = ep[VM_ENV_DATA_INDEX_FLAGS];
+ 
+@@ -455,6 +486,19 @@ vm_pop_frame(rb_execution_context_t *ec, rb_control_frame_t *cfp, const VALUE *e
+     return (uintptr_t)flags & VM_FRAME_FLAG_FINISH;
+ }
+ 
++static inline int
++vm_pop_frame(rb_execution_context_t *ec, rb_control_frame_t *cfp, const VALUE *ep)
++{
++#ifdef __FILC__
++    VALUE *end = vm_frame_stack_end(cfp);
++#endif
++    int finished = vm_pop_frame_preserving_stack(ec, cfp, ep);
++#ifdef __FILC__
++    vm_clear_popped_frame(ec, cfp, end);
++#endif
++    return finished;
++}
++
+ void
+ rb_vm_pop_frame(rb_execution_context_t *ec)
+ {
+@@ -3541,7 +3585,10 @@ vm_call_iseq_setup_tailcall(rb_execution_context_t *ec, rb_control_frame_t *cfp,
+         }
+     }
+ 
+-    vm_pop_frame(ec, cfp, cfp->ep);
++#ifdef __FILC__
++    VALUE *end = vm_frame_stack_end(cfp);
++#endif
++    vm_pop_frame_preserving_stack(ec, cfp, cfp->ep);
+     cfp = ec->cfp;
+ 
+     sp_orig = sp = cfp->sp;
+@@ -3555,6 +3602,15 @@ vm_call_iseq_setup_tailcall(rb_execution_context_t *ec, rb_control_frame_t *cfp,
+         *sp++ = src_argv[i];
+     }
+ 
++#ifdef __FILC__
++    if (UNLIKELY(vm_stack_overflow_p(RUBY_VM_NEXT_CONTROL_FRAME(cfp), sp,
++                                   ISEQ_BODY(iseq)->local_table_size - ISEQ_BODY(iseq)->param.size + ISEQ_BODY(iseq)->stack_max))) {
++        if (sp > end) end = sp;
++        vm_clear_popped_frame(ec, RUBY_VM_NEXT_CONTROL_FRAME(cfp), end);
++        vm_stackoverflow();
++    }
++#endif
++
+ vm_push_frame(ec, iseq, (VALUE)(VM_FRAME_MAGIC_METHOD | VM_ENV_FLAG_LOCAL | finish_flag),
+                   calling->recv, calling->block_handler, (VALUE)me,
+                   ISEQ_BODY(iseq)->iseq_encoded + opt_pc, sp,
+@@ -3562,6 +3618,9 @@ vm_push_frame(ec, iseq, (VALUE)(VM_FRAME_MAGIC_METHOD | VM_ENV_FLAG_LOCAL | fini
+                   ISEQ_BODY(iseq)->stack_max);
+ 
+     cfp->sp = sp_orig;
++#ifdef __FILC__
++    if (end > ec->cfp->sp) memset(ec->cfp->sp, 0, (end - ec->cfp->sp) * sizeof(VALUE));
++#endif
+ 
+     return Qundef;
+ }
