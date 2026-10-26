@@ -14,7 +14,7 @@ timeout -k 15 600 make btest > /work/ta/btest-native-checked.log 2>&1
 result=$?
 printf '%s\n' "$result" > /work/ta/btest-native-checked.status
 if [[ $result -ne 0 ]]; then exit "$result"; fi
-timeout -k 10 180 ./miniruby /work/tmetaclass-publication.rb > /work/ta/metaclass-publication-native-checked.log 2>&1
+timeout -k 10 180 ./miniruby /work/probes/ruby/metaclass-publication.rb > /work/ta/metaclass-publication-native-checked.log 2>&1
 result=$?
 printf '%s\n' "$result" > /work/ta/metaclass-publication-native-checked.status
 exit "$result"

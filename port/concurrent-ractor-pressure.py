@@ -11,7 +11,7 @@ env = dict(os.environ)
 children = []
 for index in range(count):
     log = Path(f'{prefix}-{index + 1}.log').open('w')
-    child = subprocess.Popen([ruby, '/work/trport.rb', '10'], stdout=log, stderr=subprocess.STDOUT, env=env)
+    child = subprocess.Popen([ruby, '/work/probes/ruby/ractor-port-pressure.rb', '10'], stdout=log, stderr=subprocess.STDOUT, env=env)
     children.append((child, log))
 result = 0
 for index, (child, log) in enumerate(children, 1):

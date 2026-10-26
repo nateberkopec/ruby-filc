@@ -12,11 +12,11 @@ The older development installation, through port commit `e267785`, is at `/opt/r
 
 To reproduce the package: fetch and unpack upstream nio4r 2.7.5, apply the patch with `patch -p1`, export the original gem's specification with `gem specification <original.gem> --ruby`, and build the patched directory with `gem build`. Install the resulting gem using the Fil-C Ruby, not the system Ruby.
 
-The `tnio4r.rb` probe checks interest changes, readiness, data transfer, deregistration, and cleanup on epoll, poll, and select. Each backend completes 100 readable events with explicit collections. Linux AIO and io_uring were not tested. This is not nio4r's full upstream test suite.
+The `probes/ruby/nio4r.rb` probe checks interest changes, readiness, data transfer, deregistration, and cleanup on epoll, poll, and select. Each backend completes 100 readable events with explicit collections. Linux AIO and io_uring were not tested. This is not nio4r's full upstream test suite.
 
 ## Puma 8.0.2
 
-Puma builds without source changes against the patched nio4r. The `tpuma.rb` probe serves 100 POST requests from five concurrent keep-alive clients. Every request forces collection and checks the response path and request-body SHA-256. The server shuts down synchronously afterward.
+Puma builds without source changes against the patched nio4r. The `probes/ruby/puma.rb` probe serves 100 POST requests from five concurrent keep-alive clients. Every request forces collection and checks the response path and request-body SHA-256. The server shuts down synchronously afterward.
 
 Logs are in `../../ta/nio4r-install-fixed.log`, `../../ta/nio4r-runtime.log`, `../../ta/puma-install.log`, and `../../ta/puma-runtime.log`.
 

@@ -14,7 +14,7 @@ for round in 1 2 3; do
     if test "$variant" = current; then ruby=$current/miniruby; else ruby=/work/ruby-4.0.7-glibc/miniruby; fi
     name=ractor-cme-toolchain-$variant-$round
     cp /sys/fs/cgroup/memory.events "/work/ta/$name-memory-before.log"
-    if timeout -k 15 300 /usr/bin/time -v "$ruby" /work/trport.rb 10 > "/work/ta/$name.log" 2>&1; then status=0; else status=$?; failed=1; fi
+    if timeout -k 15 300 /usr/bin/time -v "$ruby" /work/probes/ruby/ractor-port-pressure.rb 10 > "/work/ta/$name.log" 2>&1; then status=0; else status=$?; failed=1; fi
     printf '%s\n' "$status" > "/work/ta/$name.status"
     cp /sys/fs/cgroup/memory.events "/work/ta/$name-memory-after.log"
     printf '%s: %s\n' "$name" "$status"

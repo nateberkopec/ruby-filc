@@ -2,6 +2,19 @@
 
 An experimental Ruby 4.0.7 port to Fil-C, using glibc and Fil-C's FUGC collector. This repository contains the source patches, Docker example, regression probes, and investigation notes. **Ruby's full suites still fail. This is not a drop-in replacement for ordinary Ruby.**
 
+## Repository guide
+
+| Location | Contents |
+|---|---|
+| [`example/`](example/) | Reproducible Docker build, application example and smoke checks |
+| [`probes/`](probes/README.md) | Standalone Ruby and C regression tests, failure reproducers and pressure measurements |
+| [`port/`](port/README.md) | Source preparation/export tools, build/validation runners and investigation history |
+| [`ruby-4.0.7-filc.patch`](ruby-4.0.7-filc.patch) | Consolidated patch used by the Docker build |
+| [`RECOVERY.md`](RECOVERY.md) | Recovery provenance, artifact identities and remaining recovery work |
+| [`licenses/`](licenses/) | Upstream licensing terms |
+
+Start with `example/` to build Ruby. Use `probes/` to reproduce individual behaviors. Historical reviews and experiments live under `port/`; they are not the primary setup instructions.
+
 ## Build the Docker example
 
 Place the matching optfil 0.686 archive from the [Fil-C release](https://github.com/pizlonator/fil-c/releases/tag/v0.686) in `example/dist/`. The Dockerfile checks its SHA-256, downloads verified pristine Ruby and libyaml sources, and builds Ruby with the port patch.
@@ -50,7 +63,7 @@ Historical complete-suite results before workspace recovery:
 
 The VM-stack candidate passed 2,044 bootstrap tests and 50 standalone regressions in each of normal and checked builds before recovery. Its independent follow-up review found no concrete defects. Its full test-all/spec/C-API run did not complete.
 
-Fresh recovery checks reproduce the exact port and candidate hashes, reconstruct an identical complete Ruby source tree, and pass all nine retirement scenarios on the recovered normal and checked binaries. A combined forwarding/tail-call probe still traps on both baseline and candidate Fil-C; the host stock Ruby 4.0.5 control also fails, with an argument error. Stock Linux 4.0.7 comparison and diagnosis remain pending. These results do not establish full compatibility.
+Fresh recovery checks reproduce the exact port and candidate hashes, reconstruct an identical complete Ruby source tree, and pass all nine retirement scenarios on the recovered normal and checked binaries. A combined forwarding/tail-call probe still traps on both baseline and candidate Fil-C; the host stock Ruby 4.0.5 control also fails, with an argument error. A fresh, unmodified stock Linux Ruby 4.0.7 build also segfaults on the minimal tail-call reproducer, while its ordinary-call control returns 42. Diagnosis and a fix remain pending. These results do not establish full compatibility.
 
 Remaining gaps include memory pressure/OOM, GC APIs and events, signal/crash reporting, private file-backed buffer growth, OpenSSL secure allocation and export auditing, and broader native-gem/application coverage. Rails, clustered/TLS Puma, long-running workloads, and amd64 are not yet validated. Continuations, moving compaction, M:N scheduling, and JIT support are unfinished.
 

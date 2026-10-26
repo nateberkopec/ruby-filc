@@ -16,7 +16,7 @@ File.write(p, s.sub(block, ''))
 RUBY
 make -j4 miniruby > /work/ta/vmcheck-protected-before-build.log 2>&1
 set +e
-timeout -k 5 60 ./miniruby /work/tprotected-callcache.rb > /work/ta/callcache-protected-vmcheck-before.log 2>&1
+timeout -k 5 60 ./miniruby /work/probes/ruby/protected-callcache.rb > /work/ta/callcache-protected-vmcheck-before.log 2>&1
 result=$?
 set -e
 printf '%s\n' "$result" > /work/ta/callcache-protected-vmcheck-before.status

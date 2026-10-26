@@ -22,24 +22,24 @@ for variant in stock filc vmcheck; do
     for operation in read write; do
       for dispatch in direct public_send; do
         for mutation in remove replace; do
-          run_check "cme-final-trace-$variant-$kind-$operation-$dispatch-$mutation" timeout -k 5 90 "$ruby" /work/tcallcache-cme-trace.rb "$kind" "$operation" "$dispatch" "$mutation"
+          run_check "cme-final-trace-$variant-$kind-$operation-$dispatch-$mutation" timeout -k 5 90 "$ruby" /work/probes/ruby/callcache-cme-trace.rb "$kind" "$operation" "$dispatch" "$mutation"
         done
       done
     done
   done
   for shape in simple optional keyword keyword_default complex forwarding tailcall arity; do
-    run_check "cme-final-warning-$variant-$shape" timeout -k 5 90 "$ruby" /work/tcallcache-cme-warning.rb "$shape"
+    run_check "cme-final-warning-$variant-$shape" timeout -k 5 90 "$ruby" /work/probes/ruby/callcache-cme-warning.rb "$shape"
   done
   for mode in baseline dispatch; do
-    run_check "cme-final-lifetime-$variant-$mode" timeout -k 5 90 "$ruby" /work/tcallcache-cme-lifetime.rb "$mode"
+    run_check "cme-final-lifetime-$variant-$mode" timeout -k 5 90 "$ruby" /work/probes/ruby/callcache-cme-lifetime.rb "$mode"
   done
   for mode in keep replace release; do
     for count in 1 8; do
-      run_check "cme-final-isolate-$variant-$mode-$count" timeout -k 5 90 "$ruby" /work/tcallcache-cme-isolate.rb "$mode" "$count"
+      run_check "cme-final-isolate-$variant-$mode-$count" timeout -k 5 90 "$ruby" /work/probes/ruby/callcache-cme-isolate.rb "$mode" "$count"
     done
   done
-  run_check "cme-final-invalidation-$variant" timeout -k 5 120 "$ruby" /work/tcallcache-cme-invalidation.rb
-  run_check "cme-final-protected-$variant" timeout -k 5 120 "$ruby" /work/tprotected-callcache.rb
+  run_check "cme-final-invalidation-$variant" timeout -k 5 120 "$ruby" /work/probes/ruby/callcache-cme-invalidation.rb
+  run_check "cme-final-protected-$variant" timeout -k 5 120 "$ruby" /work/probes/ruby/protected-callcache.rb
 done
 run_check btest-cme-reentrancy timeout -k 15 600 make btest
 run_check btest-cme-reentrancy-vmcheck timeout -k 15 600 make -C "$checked" btest

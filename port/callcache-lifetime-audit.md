@@ -25,22 +25,22 @@ At `e68cce3`, only the receiver-class representation had been corrected; `cme_` 
 
 ## Lifetime probe and control correction
 
-`tcallcache-lifetime.rb` creates 500 anonymous String subclasses in either baseline mode or dispatch mode, where each instance must return the expected byte from `getbyte`. It strongly retains ten classes and watches all 500 with ObjectSpace::WeakMap. After one explicit full/immediate collection, it requires all ten held classes and no others to remain.
+`probes/ruby/callcache-lifetime.rb` creates 500 anonymous String subclasses in either baseline mode or dispatch mode, where each instance must return the expected byte from `getbyte`. It strongly retains ten classes and watches all 500 with ObjectSpace::WeakMap. After one explicit full/immediate collection, it requires all ten held classes and no others to remain.
 
 The original direct-frame probe passed on host stock Ruby 4.0.5 ARM64 Darwin. It retained 432 classes on old Fil-C and eleven on the first weak-class candidate. Contrary to an earlier report, the stock Ruby 4.0.7 Linux direct-frame dispatch control also retained eleven. A completed-thread variant retained ten on stock Linux but eleven on Fil-C. Heap diagnostics identified the final receiver/class; the separate residual/thread lifetime is not fully explained.
 
 The final probe retires the allocation frame by running it in a completed Fiber. It keeps the same one-collection and exact-ten assertions. Both modes pass on stock Ruby 4.0.7 Linux and the patched port; the old `74beca5` image still retains hundreds after dispatch. Logs: `ta/callcache-fiber-{baseline,dispatch}-{filc,stock}.*` and `ta/callcache-fiber-dispatch-before-image.*`. Earlier controls remain under `ta/callcache-lifetime-*` and `ta/callcache-thread-*`.
 
 ```fish
-docker exec ruby-filc-glibc /work/ruby-4.0.7-glibc/miniruby /work/tcallcache-lifetime.rb baseline
-docker exec ruby-filc-glibc /work/ruby-4.0.7-glibc/miniruby /work/tcallcache-lifetime.rb dispatch
+docker exec ruby-filc-glibc /work/ruby-4.0.7-glibc/miniruby /work/probes/ruby/callcache-lifetime.rb baseline
+docker exec ruby-filc-glibc /work/ruby-4.0.7-glibc/miniruby /work/probes/ruby/callcache-lifetime.rb dispatch
 ```
 
 ## Class-owned method entries: correction in 78e4bb7
 
-`tcallcache-cme-lifetime.rb` gives each of the 500 subclasses its own Ruby method, then optionally dispatches through it. It uses the same completed-Fiber allocation boundary, ten held classes, and one explicit full/immediate collection. With the source now committed as `70c5604`, baseline retains exactly ten classes on both Fil-C and stock Ruby 4.0.7 Linux. Dispatch retains eleven on Fil-C, exit 1, versus ten on stock, exit 0. Logs: `ta/callcache-cme-{baseline,dispatch}-{filc,stock}.*`.
+`probes/ruby/callcache-cme-lifetime.rb` gives each of the 500 subclasses its own Ruby method, then optionally dispatches through it. It uses the same completed-Fiber allocation boundary, ten held classes, and one explicit full/immediate collection. With the source now committed as `70c5604`, baseline retains exactly ten classes on both Fil-C and stock Ruby 4.0.7 Linux. Dispatch retains eleven on Fil-C, exit 1, versus ten on stock, exit 0. Logs: `ta/callcache-cme-{baseline,dispatch}-{filc,stock}.*`.
 
-The follow-up `tcallcache-cme-isolate.rb` retains one or eight independent call sites. Fil-C retains one extra class per live site; redispatching those sites on a held class removes all extras. Stock retains only the controls in every case. A native heap dump then identifies eight paths from the held Proc array through ISeq storage, a callcache, its ordinary method-entry pointer and the otherwise unreachable class. The Ruby dump confirms the callcache -> ment -> CLASS types. See `ta/callcache-cme-heap-{paths,annotated}.txt` and `ta/callcache-cme-objects.jsonl`.
+The follow-up `probes/ruby/callcache-cme-isolate.rb` retains one or eight independent call sites. Fil-C retains one extra class per live site; redispatching those sites on a held class removes all extras. Stock retains only the controls in every case. A native heap dump then identifies eight paths from the held Proc array through ISeq storage, a callcache, its ordinary method-entry pointer and the otherwise unreachable class. The Ruby dump confirms the callcache -> ment -> CLASS types. See `ta/callcache-cme-heap-{paths,annotated}.txt` and `ta/callcache-cme-objects.jsonl`.
 
 The original candidate changed vm_callinfo.h and vm_insnhelper.c (+24/-4), frozen in `port/weak-normal-cme.patch`. Only normal heap-cache CMEs become weak. Super/refinement and unmarkable CMEs remain direct; both stack-copy paths resolve the representation. The allocator guards the original CME, and root-cache validity checking holds the resolved class through the CME check. No strong invalidated-cache fields or adjacent tables are changed.
 

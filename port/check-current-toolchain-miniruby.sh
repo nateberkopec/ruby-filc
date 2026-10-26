@@ -13,33 +13,33 @@ check() {
   if test "$status" != 0; then tail -15 "$prefix-$name.log"; fi
 }
 for mode in baseline dispatch; do
-  check "cme-lifetime-$mode" /work/tcallcache-cme-lifetime.rb "$mode"
-  check "class-lifetime-$mode" /work/tcallcache-lifetime.rb "$mode"
+  check "cme-lifetime-$mode" /work/probes/ruby/callcache-cme-lifetime.rb "$mode"
+  check "class-lifetime-$mode" /work/probes/ruby/callcache-lifetime.rb "$mode"
 done
 for mode in keep replace release; do
-  for count in 1 8; do check "cme-isolate-$mode-$count" /work/tcallcache-cme-isolate.rb "$mode" "$count"; done
+  for count in 1 8; do check "cme-isolate-$mode-$count" /work/probes/ruby/callcache-cme-isolate.rb "$mode" "$count"; done
 done
 for kind in attr struct; do
   for operation in read write; do
     for dispatch in direct public_send; do
       for mutation in remove replace; do
-        check "cme-trace-$kind-$operation-$dispatch-$mutation" /work/tcallcache-cme-trace.rb "$kind" "$operation" "$dispatch" "$mutation"
+        check "cme-trace-$kind-$operation-$dispatch-$mutation" /work/probes/ruby/callcache-cme-trace.rb "$kind" "$operation" "$dispatch" "$mutation"
       done
     done
   done
 done
 for shape in simple optional keyword keyword_default complex forwarding tailcall arity; do
-  check "cme-warning-$shape" /work/tcallcache-cme-warning.rb "$shape"
+  check "cme-warning-$shape" /work/probes/ruby/callcache-cme-warning.rb "$shape"
 done
-check cme-invalidation /work/tcallcache-cme-invalidation.rb
-check protected /work/tprotected-callcache.rb
-check metaclass /work/tmetaclass-publication.rb
-check subclasses /work/tsubclasses-concurrent-gc.rb
+check cme-invalidation /work/probes/ruby/callcache-cme-invalidation.rb
+check protected /work/probes/ruby/protected-callcache.rb
+check metaclass /work/probes/ruby/metaclass-publication.rb
+check subclasses /work/probes/ruby/subclasses-concurrent-gc.rb
 for mode in enable_race disabled_count overlap atomic_transitions enable_during_overlap fork_count; do
-  check "gc-$mode" /work/treview-gc-state.rb "$mode"
+  check "gc-$mode" /work/probes/ruby/review-gc-state.rb "$mode"
 done
 for delay in 0.001 0.005 0.01 0.02 0.04; do
-  check "disable-retention-$delay" /work/treview-disable-retention.rb "$delay"
+  check "disable-retention-$delay" /work/probes/ruby/review-disable-retention.rb "$delay"
 done
-check buffer-contract /work/tbuffer-remap-contract.rb
+check buffer-contract /work/probes/ruby/buffer-remap-contract.rb
 exit "$failed"

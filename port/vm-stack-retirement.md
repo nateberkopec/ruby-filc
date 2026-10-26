@@ -6,7 +6,7 @@ The committed/exported port and released-toolchain Docker images remain at `78e4
 
 ## Reproduction and root paths
 
-`tvm-stack-lifetime.rb` allocates 100 strings through recursive Ruby calls, returns those calls, suspends the still-live Fiber, and performs one full/immediate collection. It requires exactly zero live WeakMap keys. Stock Ruby 4.0.7 Linux and host Ruby 4.0.5 pass; baseline Fil-C retains 99.
+`probes/ruby/vm-stack-lifetime.rb` allocates 100 strings through recursive Ruby calls, returns those calls, suspends the still-live Fiber, and performs one full/immediate collection. It requires exactly zero live WeakMap keys. Stock Ruby 4.0.7 Linux and host Ruby 4.0.5 pass; baseline Fil-C retains 99.
 
 The initial probe used WeakMap#size, which includes unpruned dead entries on stock. That measurement was invalid; original direct/Fiber programs and logs are retained in `ta/`. The corrected probe enumerates keys without changing the collection count or exact lifetime requirement.
 
@@ -15,7 +15,7 @@ A freshly compiled diagnostic extension reports the Fiber VM-stack allocation an
 - `ta/vm-stack-lifetime-fiber-{stock,filc}-live-keys.*`
 - `ta/vm-stack-heap-build.*`, `ta/vm-stack-before-{heap,targets,paths}.txt`
 - `ta/vm-stack-after-build.*`, `ta/vm-stack-after-{heap,targets,paths}.txt`
-- `ctest/vm-stack-heap/filc_vm_stack_heap.c`, `tvm-stack-heap.rb`
+- `probes/c/vm-stack-heap/filc_vm_stack_heap.c`, `probes/ruby/vm-stack-heap.rb`
 
 The first diagnostic-extension build used a hidden execution-context getter and failed to load with an undefined symbol. The corrected helper accesses the current Thread's data using matching internal headers. Original failure: `ta/vm-stack-heap-build.*.before-ec-access`.
 
@@ -27,8 +27,8 @@ The first frozen patch, `port/vm-stack-clear-candidate.patch`, has SHA256 `38512
 
 Two issues were reproduced and corrected:
 
-1. The reviewer identified a tailcall whose replacement frame overflows. The original cleanup lay after vm_push_frame, so the exception bypassed it. `tvm-stack-tail-overflow.rb` verifies actual TAILCALL compilation and a callee stack_max of 20001, rescues SystemStackError, and checks zero live keys while the Fiber remains alive. Stock passes; the initial candidate retains one key. The revision uses the same extracted overflow predicate as the ordinary stack check, clears the discarded outgoing frame and copied argument range before raising, and passes on normal and checked builds.
-2. VM_CHECK_MODE=1 plus VM_DEBUG_BP_CHECK=1 exposed a startup trap: a C frame's EP was null. An unchanged checked control starts successfully. Native traces identify REWIND_CFP in the FrozenCore alias/undef helpers: it temporarily hides a C frame, nested calls reuse and now clear that slot, and the macro then reactivates the cleared frame. The Fil-C macro now saves/restores the complete hidden frame before republishing it, retaining the existing temporary SP handling. Both assertions remain enabled. `tvm-stack-rewind.rb` exercises alias/undef callbacks with collection; it and startup pass after correction. Original failures and diagnostic traces: `ta/vm-stack-retirement-checked-*`, `ta/vm-stack-debug-*`. The diagnostic logging is only in `ta/vm_insnhelper-frame-debug.c`, not the candidate source.
+1. The reviewer identified a tailcall whose replacement frame overflows. The original cleanup lay after vm_push_frame, so the exception bypassed it. `probes/ruby/vm-stack-tail-overflow.rb` verifies actual TAILCALL compilation and a callee stack_max of 20001, rescues SystemStackError, and checks zero live keys while the Fiber remains alive. Stock passes; the initial candidate retains one key. The revision uses the same extracted overflow predicate as the ordinary stack check, clears the discarded outgoing frame and copied argument range before raising, and passes on normal and checked builds.
+2. VM_CHECK_MODE=1 plus VM_DEBUG_BP_CHECK=1 exposed a startup trap: a C frame's EP was null. An unchanged checked control starts successfully. Native traces identify REWIND_CFP in the FrozenCore alias/undef helpers: it temporarily hides a C frame, nested calls reuse and now clear that slot, and the macro then reactivates the cleared frame. The Fil-C macro now saves/restores the complete hidden frame before republishing it, retaining the existing temporary SP handling. Both assertions remain enabled. `probes/ruby/vm-stack-rewind.rb` exercises alias/undef callbacks with collection; it and startup pass after correction. Original failures and diagnostic traces: `ta/vm-stack-retirement-checked-*`, `ta/vm-stack-debug-*`. The diagnostic logging is only in `ta/vm_insnhelper-frame-debug.c`, not the candidate source.
 
 Revised frozen patch: `port/vm-stack-clear-revised.patch`, three files, +83/-4, SHA256 `9147af50928511bfe5b0e6b171228324c814b59ca33c6ad9bcaf18eec37023f6`. Same-model follow-up run `97ca15a8-36b1-4ada-af50-fa4c46057690` verified that exact diff and returned OK with notes, with no concrete source findings. It confirmed the original overflow bypass is resolved and audited rewind restoration, exception exits, closure/C-frame lifetimes, forwarding geometry, and non-Fil-C behavior. Report: `port/independent-review-vm-stack-clear-revised.md`. The parent read the report and closed the bounded review mission as completed; full runtime acceptance remains outstanding.
 
@@ -37,7 +37,7 @@ Revised frozen patch: `port/vm-stack-clear-revised.patch`, three files, +83/-4, 
 The compiler/runtime are the coherent source build at `9d1ed206e0ccfc1ec114471386befeba643a5f86`. Normal source/install paths remain in `ta/ruby-cme-current-toolchain-path.txt`. The checked build path is in `ta/vm-stack-checked-build-path.txt`; it uses both VM_CHECK_MODE=1 and VM_DEBUG_BP_CHECK=1.
 
 - The original exact-zero lifetime probe passes on normal and checked miniruby.
-- `tvm-stack-retirement.rb` covers normal return, raise, throw, ten intentionally held closures, nested C frames, receiver lifetime, argument forwarding, successful tailcalls with argument preservation, and reentrant return TracePoints. All nine modes pass on both builds. The baseline Fil-C runtime fails all nine lifetime checks.
+- `probes/ruby/vm-stack-retirement.rb` covers normal return, raise, throw, ten intentionally held closures, nested C frames, receiver lifetime, argument forwarding, successful tailcalls with argument preservation, and reentrant return TracePoints. All nine modes pass on both builds. The baseline Fil-C runtime fails all nine lifetime checks.
 - The first C-frame stock control retained one conservative native residue. One final C call over an untracked symbol array removes that ambiguity; the exact-zero assertion and single collection are unchanged. The corrected stock control passes, baseline Fil-C retains 99, and the candidate passes. Original program/logs are retained with `before-cframe-control` names.
 - The tailcall-overflow and rewind probes pass on normal and checked builds. `ta/vm-stack-revised-{normal,checked}-{lifetime,rewind,tail-overflow}.*`.
 - Normal bootstrap: 2044 passed, 137.78 seconds. Checked bootstrap: 2044 passed, 166.85 seconds. Each build also passes all 50 existing standalone cache, reentrancy, concurrency, GC-state, retention, and buffer regressions. `ta/vm-stack-revised-{normal,checked}-{btest,regressions}.*` and per-probe statuses.
@@ -47,7 +47,7 @@ The compiler/runtime are the coherent source build at `9d1ed206e0ccfc1ec11447138
 
 ## Forwarding and tailcall cross-product control
 
-The follow-up reviewer noted that the existing runtime probes exercise forwarding and tailcalls separately. `tvm-stack-forward-tail.rb` now prepares a combined probe with both outgoing-only and bidirectional tailcalls. It verifies actual sendforward instructions and TAILCALL flags, checks argument/keyword/block preservation, and retains the exact-zero/single-GC lifetime requirement.
+The follow-up reviewer noted that the existing runtime probes exercise forwarding and tailcalls separately. `probes/ruby/vm-stack-forward-tail.rb` now prepares a combined probe with both outgoing-only and bidirectional tailcalls. It verifies actual sendforward instructions and TAILCALL flags, checks argument/keyword/block preservation, and retains the exact-zero/single-GC lifetime requirement.
 
 The first shape incorrectly required sendforward itself to have a TAILCALL flag. Stock Ruby 4.0.5 disassembly and this Ruby 4.0.7 source's compile.c:4005-4007 show that this optimizer marks send/invokesuper, not sendforward. That invalid control and its disassembly/failure are preserved as `ta/vm-stack-forward-tail-before-sendforward-control.rb`, `ta/vm-stack-forward-tail-disasm-stock-darwin.log`, and the `.before-sendforward-control` logs/statuses.
 

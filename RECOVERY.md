@@ -36,14 +36,14 @@ The nio4r patch was reconstructed by comparing the upstream source gem with the 
 - A clean `port/prepare-source.py --candidate` run creates the same complete source Git tree as the recovered worktree: `c0f90ce9f7090e16541a6d0a90caab8e7dd41f7e`.
 - The recovered newer-toolchain normal and checked miniruby binaries each pass all nine VM-frame-retirement scenarios, using a read-only compiler volume and 8 GiB/no-swap/CPUs 0-3.
 - The outgoing-only forwarding/tail-call probe passes on baseline, normal candidate and checked candidate binaries.
-- The bidirectional forwarding/tail-call probe exits 133 with a safety trap on all three. The earlier stock macOS Ruby 4.0.5 control raises an argument-count error. This is not a regression unique to the VM-stack patch; stock Linux 4.0.7 comparison remains required.
+- The bidirectional forwarding/tail-call probe exits 133 with a safety trap on all three. The earlier stock macOS Ruby 4.0.5 control raises an argument-count error. This is not a regression unique to the VM-stack patch. A subsequent minimal reproducer also segfaults on a fresh, unmodified stock Linux Ruby 4.0.7 build (exit 139); its non-tail control returns 42. That build uses GCC and `/lib/ld-linux-aarch64.so.1`, not Fil-C. Fresh evidence: `ta/stock-control-build.*` and `ta/tail-forward-minimal-stock-{plain,tail}.*`.
 
 Fresh local evidence is under `ta/recovery-*`. The diagnostic driver completed all cases; its shell completion is not an all-tests-pass verdict. Individual failing statuses are preserved. Original raw suite logs under the lost `ta/` directory were not recreated from remembered results. Historical numbers in STATUS and review reports remain historical observations.
 
 ## Resume work
 
 1. Publish and preserve the recovered source artifacts and record future work in Git.
-2. Run a stock Linux 4.0.7 control for the forwarding/tail-call trap and fix the verified root cause without weakening either test mode.
-3. Recreate a writable development container with this durable workspace mounted at `/work`; the old stopped container still references the missing temporary directory.
+2. Fix the forwarding/tail-call failure now reproduced on stock Linux 4.0.7 and baseline Fil-C, without weakening either test mode.
+3. Continue in `ruby-filc-dev-recovered`, created from a local snapshot of the stopped toolchain container with the durable workspace at `/work`. The original stopped container still references the missing temporary directory; its original volume was preserved.
 4. Restore path records from inspected surviving directories, then complete candidate test-all, specs, C-API, native-gem checks and controlled pressure comparisons.
 5. Continue the remaining compatibility and resource work. Recovery and publication do not complete the Ruby/Fil-C goal.
