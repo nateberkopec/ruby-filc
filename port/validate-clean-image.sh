@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -u
 revision=${1:?revision required}
-cd /tmp/build/ruby-4.0.7 || exit 1
+version=$(ruby -e 'print RUBY_VERSION') || exit 1
+cd "/tmp/build/ruby-$version" || exit 1
 chmod -R a+rwX . || exit 1
 umask 022
 cp /sys/fs/cgroup/memory.events "/logs/image-memory-events-$revision-before.log" || exit 1
@@ -15,7 +16,8 @@ run_suite() {
     if [[ $status -ne 0 ]]; then result=$status; fi
 }
 run_suite btest 600 make btest
-run_suite test-all 1500 make test-all TEST_EXCLUDES=--excludes-dir=/tmp/build/ruby-4.0.7/test/.excludes 'TESTOPTS=-j2 --no-retry --timeout-scale=3'
+run_suite test-all 1500 make test-all "TEST_EXCLUDES=--excludes-dir=$PWD/test/.excludes" 'TESTOPTS=-j2 --no-retry --timeout-scale=3'
 run_suite spec 600 make test-spec
+run_suite capi 600 make test-spec SPECOPTS=spec/ruby/optional/capi
 cp /sys/fs/cgroup/memory.events "/logs/image-memory-events-$revision-after.log" || exit 1
 exit "$result"

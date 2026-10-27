@@ -1,8 +1,10 @@
 /recovery/
 /tmp/
 /ta/
-/ruby-4.0.7-glibc/
-/ruby-4.0.7-stock/
+/ruby-*-glibc/
+/ruby-*-stock/
+.env
+hk.local.pkl
 /source/
 /upstream/
 /native-gems/

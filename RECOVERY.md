@@ -1,5 +1,7 @@
 # Workspace recovery
 
+This records the Ruby 4.0.7 recovery. The active build is now being upgraded to Ruby 4.0.9 and Fil-C 0.687; do not apply the hashes below to the new exports. The recovered 4.0.7 export and setup tools remain available at outer repository commit `a186fd7`.
+
 The expected `/tmp/ruby-filc` workspace was absent when work resumed. Docker was already responsive, so the approved OrbStack restart was not performed. The original Ruby containers were stopped. The toolchain container reported exit 255 and OOMKilled=true; that does not identify which interrupted workload caused the flag or explain the missing host directory.
 
 Recovered work is now under `~/src/tries/2026-10-27-ruby-filc`. Existing Docker images and the `ruby-filc-toolchain-data` volume were inspected read-only. No original container was restarted, no volume was removed, and no missing host bind directory was silently recreated.

@@ -1,9 +1,9 @@
 FROM ubuntu:24.04 AS build
 
 ARG TARGETARCH
-ARG FILC_VERSION=0.686
-ARG RUBY_VERSION=4.0.7
-ARG RUBY_SHA256=47ef59413f7a4587ba6a6b78b14036eb5e36eec2ec0b90964801e88d56a3d375
+ARG FILC_VERSION=0.687
+ARG RUBY_VERSION=4.0.9
+ARG RUBY_SHA256=a8057adb39f51ad6dc3106237504c93dd792bb515837b4fe7817ae21ed7e51f4
 ARG BUILD_JOBS=4
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /tmp/build
 COPY dist/ /tmp/filc-dist/
 RUN case "$TARGETARCH" in \
-      arm64) arch=aarch64; sha=ab3365499571b5e62513247467a7450cd8e02bb915d6bd0b5f49433f25c52cf6 ;; \
-      amd64) arch=x86_64; sha=3a0ba45283ff29668335d288530f35fe69c28ab8d663b4deb8801474825f117a ;; \
+      arm64) arch=aarch64; sha=375995867dcd3e91533efba6328a5057e51cf7db5a1ffa413ad391d0336ade6e ;; \
+      amd64) arch=x86_64; sha=2dc295715dc3347c1cc1b41f7a937b13a076e651e71db42f3adf00d5fb075bfe ;; \
       *) echo "Unsupported architecture: $TARGETARCH" >&2; exit 1 ;; \
     esac \
     && archive="/tmp/filc-dist/optfil-${FILC_VERSION}-linux-${arch}.tar.xz" \
@@ -38,12 +38,12 @@ RUN curl -fL --retry 3 https://pyyaml.org/download/libyaml/yaml-0.2.5.tar.gz -o 
     && make -j"$BUILD_JOBS" \
     && make install
 
-COPY ruby-4.0.7-filc.patch /tmp/build/
+COPY ruby-4.0.9-filc.patch /tmp/build/
 RUN curl -fL --retry 3 "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-${RUBY_VERSION}.tar.xz" -o ruby.tar.xz \
     && echo "$RUBY_SHA256  ruby.tar.xz" | sha256sum -c - \
     && tar -xf ruby.tar.xz \
     && cd "ruby-${RUBY_VERSION}" \
-    && patch -p1 < ../ruby-4.0.7-filc.patch \
+    && patch -p1 < ../ruby-4.0.9-filc.patch \
     && ./configure \
       --prefix=/usr/local \
       --enable-shared \

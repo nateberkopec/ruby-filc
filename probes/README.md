@@ -9,7 +9,7 @@ Run from the repository root, using the Ruby build being investigated. For examp
 ```fish
 docker run --rm --memory=8g --memory-swap=8g \
   --mount type=bind,src=(pwd),dst=/work,readonly \
-  ruby-filc:4.0.7 ruby /work/probes/ruby/callcache-cme-lifetime.rb dispatch
+  ruby-filc:4.0.9 ruby /work/probes/ruby/callcache-cme-lifetime.rb dispatch
 ```
 
 | Files under `ruby/` | Purpose |

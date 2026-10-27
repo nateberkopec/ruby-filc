@@ -3,7 +3,7 @@ set -euo pipefail
 
 ruby -ropenssl -rpsych -rzlib -rjson -rbundler -rnet/http -rfiddle -rsocket -e '
   puts RUBY_DESCRIPTION
-  raise unless RUBY_VERSION == "4.0.7"
+  raise unless RUBY_VERSION == "4.0.9"
   raise unless RbConfig::CONFIG.fetch("CC") == ENV.fetch("FILC_CC", "/opt/fil/bin/filcc")
   raise unless Encoding.default_external == Encoding::UTF_8
   raise unless Addrinfo.getaddrinfo("localhost", "ssh", :INET, :STREAM).all? { |address| address.ip_port == 22 }
@@ -22,7 +22,7 @@ ruby -ropenssl -rpsych -rzlib -rjson -rbundler -rnet/http -rfiddle -rsocket -e '
   raise unless OpenSSL::Digest::SHA256.hexdigest("Fil-C").size == 64
   uri = URI("https://rubygems.org/api/v1/gems/rake.json")
   raise unless JSON.parse(Net::HTTP.get(uri)).fetch("name") == "rake"
-  puts "Ruby 4.0.7, GC, fibers, Fiddle, JSON, YAML, zlib, OpenSSL, Bundler, and HTTPS passed"
+  puts "Ruby 4.0.9, GC, fibers, Fiddle, JSON, YAML, zlib, OpenSSL, Bundler, and HTTPS passed"
 '
 
 mkdir -p /tmp/filc-probe

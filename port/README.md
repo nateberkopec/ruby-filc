@@ -4,10 +4,10 @@ For the normal Docker build, start with [example/README.md](../example/README.md
 
 ## Source preparation
 
-- `prepare-source.py`: verify and unpack Ruby 4.0.7, initialize a local source repository, and apply the consolidated patch. `--candidate` also applies the reviewed VM-stack patch. Refuses to overwrite an existing directory.
-- `export-current.py`: export the local source diff against its pristine tag into both tracked consolidated patch copies. Generated VM/parser files are excluded. Running this on an experimental branch changes what the Docker example builds.
+- `prepare-source.py`: verify and unpack Ruby 4.0.9, initialize a local source repository, and apply the consolidated patch. `--candidate` also applies the reviewed VM-stack patch. Refuses to overwrite an existing directory.
+- `export-current.py`: export a committed local source revision against its pristine tag into both tracked consolidated patch copies; `--ref` selects the revision. Generated VM/parser files are excluded. Running this on an experimental branch changes what the Docker example builds.
 - `sources.txt`: source paths in the consolidated patch.
-- `vm-stack-clear-revised.patch`: the reviewed, incremental VM-stack candidate. The earlier `vm-stack-clear-candidate.patch` is retained only as evidence of the rejected first version.
+- `vm-stack-clear-ruby-4.0.9.patch`: the incremental VM-stack candidate rebased onto Ruby 4.0.9; fresh validation remains required. `vm-stack-clear-revised.patch` is the reviewed 4.0.7 version. `vm-stack-clear-candidate.patch` records the rejected first version.
 
 ## Build and validation runners
 
@@ -17,7 +17,9 @@ For the normal Docker build, start with [example/README.md](../example/README.md
 | `check-runtime-image.sh` | Runtime integration and fresh native-gem probes |
 | `check-app-image.sh` | HTTP application and default IRB checks |
 | `audit-runtime.rb` | libc/interpreter/library audit |
-| `build-stock-control.sh` | Unmodified Ruby 4.0.7 miniruby with GCC, from a verified archive |
+| `build-release.sh`, `test-release.sh` | Current clean Docker build and runtime system checks, exposed through mise |
+| `check-latest-version.py` | Separate Ruby/Fil-C stable-release checks against the active Dockerfile pins |
+| `build-stock-control.sh` | Unmodified miniruby with GCC, using the active Dockerfile version/checksum |
 | `check-vm-stack-retirement.sh` | Nine retirement scenarios with per-case exit statuses |
 | `validate-vm-stack-miniruby.sh`, `validate-vm-stack-full.sh` | Candidate checks in the dedicated development builds |
 | `build-current-port-toolchain.sh`, `build-current-toolchain-dependencies.sh`, `finish-current-toolchain-ruby.sh` | Historical source-built compiler/dependency/Ruby workflow |
@@ -29,7 +31,10 @@ Most Linux runners expect this repository mounted at `/work`, an appropriate com
 
 ## Notes and artifacts
 
+- [ruby-4.0.9-upgrade.md](ruby-4.0.9-upgrade.md): current source/toolchain identities, fresh checks and remaining failures.
+
 - [STATUS.md](STATUS.md): pre-recovery history and remaining compatibility gaps.
+- [release-4.0.7-history.md](release-4.0.7-history.md): prior image results, retained without relabeling them as 4.0.9 validation.
 - [vm-stack-retirement.md](vm-stack-retirement.md): retention proof, fixes, review and validation boundaries.
 - `independent-review-*.md`: bounded source reviews; an OK verdict is not full-port acceptance. Probe references have been updated to the organized layout.
 - [dependencies/README.md](dependencies/README.md): native dependency provenance and the OpenSSL audit.

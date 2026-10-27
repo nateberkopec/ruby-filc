@@ -74,7 +74,7 @@ index 7d9319b..3f64925 100644
      else if (act < 0 && act > -(v->reduce_n)) {
          D_puts("e reduce");
 diff --git a/array.c b/array.c
-index 0214ccc..5afd41f 100644
+index fb9a10c..e23c4db 100644
 --- a/array.c
 +++ b/array.c
 @@ -912,9 +912,9 @@ rb_ary_free(VALUE ary)
@@ -103,7 +103,7 @@ index 0214ccc..5afd41f 100644
          return Qnil;
        default:
          return rb_ary_subseq_step(ary, beg, len, step);
-@@ -4410,11 +4410,11 @@ rb_ary_slice_bang(int argc, VALUE *argv, VALUE ary)
+@@ -4413,11 +4413,11 @@ rb_ary_slice_bang(int argc, VALUE *argv, VALUE ary)
      }
  
      if (!FIXNUM_P(arg1)) {
@@ -118,7 +118,7 @@ index 0214ccc..5afd41f 100644
              /* invalid range */
              return Qnil;
            default:
-@@ -6949,7 +6949,7 @@ ary_sample(rb_execution_context_t *ec, VALUE ary, VALUE randgen, VALUE nv, VALUE
+@@ -6957,7 +6957,7 @@ ary_sample(rb_execution_context_t *ec, VALUE ary, VALUE randgen, VALUE nv, VALUE
          RARRAY_PTR_USE(result, ptr_result, {
              for (i=0; i<n; i++) {
                  long r = RAND_UPTO(len-i) + i;
@@ -127,7 +127,7 @@ index 0214ccc..5afd41f 100644
                  if (r > max_idx) max_idx = r;
              }
              len = RARRAY_LEN(ary);
-@@ -6957,7 +6957,7 @@ ary_sample(rb_execution_context_t *ec, VALUE ary, VALUE randgen, VALUE nv, VALUE
+@@ -6965,7 +6965,7 @@ ary_sample(rb_execution_context_t *ec, VALUE ary, VALUE randgen, VALUE nv, VALUE
              else if (n > len) n = len;
              RARRAY_PTR_USE(ary, ptr_ary, {
                  for (i=0; i<n; i++) {
@@ -155,10 +155,10 @@ index ee2fa1e..a3cf8cd 100644
      }
      else {
 diff --git a/class.c b/class.c
-index 6a5c128..34f7f38 100644
+index 788a671..3e8bdae 100644
 --- a/class.c
 +++ b/class.c
-@@ -406,7 +406,13 @@ rb_class_duplicate_classext(rb_classext_t *orig, VALUE klass, const rb_box_t *bo
+@@ -410,7 +410,13 @@ rb_class_duplicate_classext(rb_classext_t *orig, VALUE klass, const rb_box_t *bo
          rb_subclass_entry_t *subclass_entry = RCLASSEXT_SUBCLASSES(orig);
          if (subclass_entry) subclass_entry = subclass_entry->next; // skip dummy head
          while (subclass_entry) {
@@ -173,7 +173,7 @@ index 6a5c128..34f7f38 100644
  
              /* every node in the subclass list should be an ICLASS built from this module */
              VM_ASSERT(iclass);
-@@ -469,7 +475,7 @@ rb_class_super_of(VALUE klass)
+@@ -473,7 +479,7 @@ rb_class_super_of(VALUE klass)
  VALUE
  rb_class_singleton_p(VALUE klass)
  {
@@ -182,7 +182,7 @@ index 6a5c128..34f7f38 100644
  }
  
  unsigned char
-@@ -478,6 +484,27 @@ rb_class_variation_count(VALUE klass)
+@@ -482,6 +488,27 @@ rb_class_variation_count(VALUE klass)
      return RCLASS_VARIATION_COUNT(klass);
  }
  
@@ -210,7 +210,7 @@ index 6a5c128..34f7f38 100644
  static rb_subclass_entry_t *
  push_subclass_entry_to_list(VALUE super, VALUE klass)
  {
-@@ -490,7 +517,11 @@ push_subclass_entry_to_list(VALUE super, VALUE klass)
+@@ -494,7 +521,11 @@ push_subclass_entry_to_list(VALUE super, VALUE klass)
              );
  
      entry = ZALLOC(rb_subclass_entry_t);
@@ -222,7 +222,7 @@ index 6a5c128..34f7f38 100644
  
      RB_VM_LOCKING() {
          head = RCLASS_WRITABLE_SUBCLASSES(super);
-@@ -498,6 +529,12 @@ push_subclass_entry_to_list(VALUE super, VALUE klass)
+@@ -502,6 +533,12 @@ push_subclass_entry_to_list(VALUE super, VALUE klass)
              head = ZALLOC(rb_subclass_entry_t);
              RCLASS_SET_SUBCLASSES(super, head);
          }
@@ -235,7 +235,7 @@ index 6a5c128..34f7f38 100644
          entry->next = head->next;
          entry->prev = head;
  
-@@ -581,8 +618,8 @@ rb_class_classext_free_subclasses(rb_classext_t *ext)
+@@ -585,8 +622,8 @@ rb_class_classext_free_subclasses(rb_classext_t *ext)
          // so they don't try to unlink from a freed entry later.
          rb_subclass_entry_t *entry = head->next; // skip dummy head
          while (entry) {
@@ -246,7 +246,7 @@ index 6a5c128..34f7f38 100644
                  if (RCLASSEXT_SUBCLASS_ENTRY(child_ext) == entry) {
                      RCLASSEXT_SUBCLASS_ENTRY(child_ext) = NULL;
                  }
-@@ -611,10 +648,13 @@ rb_class_foreach_subclass(VALUE klass, void (*f)(VALUE, VALUE), VALUE arg)
+@@ -615,10 +652,13 @@ rb_class_foreach_subclass(VALUE klass, void (*f)(VALUE, VALUE), VALUE arg)
      /* do not be tempted to simplify this loop into a for loop, the order of
         operations is important here if `f` modifies the linked list */
      while (cur) {
@@ -261,7 +261,7 @@ index 6a5c128..34f7f38 100644
          f(curklass, arg);
          cur = tmp;
      }
-@@ -661,7 +701,7 @@ class_alloc0(enum ruby_value_type type, VALUE klass, bool boxable)
+@@ -665,7 +705,7 @@ class_alloc0(enum ruby_value_type type, VALUE klass, bool boxable)
  
      RUBY_ASSERT(type == T_CLASS || type == T_ICLASS || type == T_MODULE);
  
@@ -270,7 +270,7 @@ index 6a5c128..34f7f38 100644
      if (RGENGC_WB_PROTECTED_CLASS) flags |= FL_WB_PROTECTED;
      if (boxable) flags |= RCLASS_BOXABLE;
  
-@@ -1267,6 +1307,11 @@ rb_singleton_class_internal_p(VALUE sklass)
+@@ -1271,6 +1311,11 @@ rb_singleton_class_internal_p(VALUE sklass)
  static inline VALUE
  make_metaclass(VALUE klass)
  {
@@ -282,7 +282,7 @@ index 6a5c128..34f7f38 100644
      VALUE super;
      VALUE metaclass = class_boot_boxable(Qundef, FL_TEST_RAW(klass, RCLASS_BOXABLE));
  
-@@ -1290,6 +1335,9 @@ make_metaclass(VALUE klass)
+@@ -1294,6 +1339,9 @@ make_metaclass(VALUE klass)
  
      // Full class ancestry may not have been filled until we reach here.
      rb_class_update_superclasses(METACLASS_OF(metaclass));
@@ -292,7 +292,7 @@ index 6a5c128..34f7f38 100644
  
      return metaclass;
  }
-@@ -1704,10 +1752,11 @@ rb_include_module(VALUE klass, VALUE module)
+@@ -1708,10 +1756,11 @@ rb_include_module(VALUE klass, VALUE module)
          rb_subclass_entry_t *iclass = RCLASS_SUBCLASSES_FIRST(klass);
          while (iclass) {
              int do_include = 1;
@@ -306,7 +306,7 @@ index 6a5c128..34f7f38 100644
                  while (check_class) {
                      RUBY_ASSERT(!rb_objspace_garbage_object_p(check_class));
  
-@@ -1719,7 +1768,7 @@ rb_include_module(VALUE klass, VALUE module)
+@@ -1723,7 +1772,7 @@ rb_include_module(VALUE klass, VALUE module)
                  }
  
                  if (do_include) {
@@ -315,7 +315,7 @@ index 6a5c128..34f7f38 100644
                  }
              }
  
-@@ -1964,8 +2013,8 @@ rb_prepend_module(VALUE klass, VALUE module)
+@@ -1972,8 +2021,8 @@ rb_prepend_module(VALUE klass, VALUE module)
          while (iclass) {
              /* During lazy sweeping, iclass->klass could be a dead object that
               * has not yet been swept. */
@@ -326,7 +326,7 @@ index 6a5c128..34f7f38 100644
                  if (klass_had_no_origin && klass_origin_m_tbl == RCLASS_M_TBL(subclass)) {
                      // backfill an origin iclass to handle refinements and future prepends
                      rb_id_table_foreach(RCLASS_M_TBL(subclass), clear_module_cache_i, (void *)subclass);
-@@ -2109,8 +2158,10 @@ rb_mod_ancestors(VALUE mod)
+@@ -2117,8 +2166,10 @@ rb_mod_ancestors(VALUE mod)
  struct subclass_traverse_data
  {
      VALUE buffer;
@@ -337,7 +337,7 @@ index 6a5c128..34f7f38 100644
      bool immediate_only;
  };
  
-@@ -2122,11 +2173,15 @@ class_descendants_recursive(VALUE klass, VALUE v)
+@@ -2130,11 +2181,15 @@ class_descendants_recursive(VALUE klass, VALUE v)
      if (RB_TYPE_P(klass, T_ICLASS)) return; // skip refinement ICLASSes
  
      if (!RCLASS_SINGLETON_P(klass)) {
@@ -353,7 +353,7 @@ index 6a5c128..34f7f38 100644
          if (data->immediate_only) return;
      }
      rb_class_foreach_subclass(klass, class_descendants_recursive, v);
-@@ -2135,6 +2190,12 @@ class_descendants_recursive(VALUE klass, VALUE v)
+@@ -2143,6 +2198,12 @@ class_descendants_recursive(VALUE klass, VALUE v)
  static VALUE
  class_descendants(VALUE klass, bool immediate_only)
  {
@@ -366,7 +366,7 @@ index 6a5c128..34f7f38 100644
      struct subclass_traverse_data data = { Qfalse, 0, -1, immediate_only };
  
      // estimate the count of subclasses
-@@ -2153,6 +2214,7 @@ class_descendants(VALUE klass, bool immediate_only)
+@@ -2161,6 +2222,7 @@ class_descendants(VALUE klass, bool immediate_only)
      if (gc_count != rb_gc_count()) {
          rb_bug("GC must not occur during the subclass iteration of Class#descendants");
      }
@@ -374,7 +374,7 @@ index 6a5c128..34f7f38 100644
  
      return data.buffer;
  }
-@@ -2300,7 +2362,7 @@ method_entry_i(ID key, VALUE value, void *data)
+@@ -2308,7 +2370,7 @@ method_entry_i(ID key, VALUE value, void *data)
          if (!me) return ID_TABLE_CONTINUE;
          if (!arg->recur && me->owner != owner) return ID_TABLE_CONTINUE;
      }
@@ -383,7 +383,7 @@ index 6a5c128..34f7f38 100644
          if (UNDEFINED_METHOD_ENTRY_P(me)) {
              type = METHOD_VISI_UNDEF; /* none */
          }
-@@ -2308,7 +2370,7 @@ method_entry_i(ID key, VALUE value, void *data)
+@@ -2316,7 +2378,7 @@ method_entry_i(ID key, VALUE value, void *data)
              type = METHOD_ENTRY_VISI(me);
              RUBY_ASSERT(type != METHOD_VISI_UNDEF);
          }
@@ -392,7 +392,7 @@ index 6a5c128..34f7f38 100644
      }
      return ID_TABLE_CONTINUE;
  }
-@@ -2704,10 +2766,10 @@ rb_undef_methods_from(VALUE klass, VALUE super)
+@@ -2712,10 +2774,10 @@ rb_undef_methods_from(VALUE klass, VALUE super)
  static inline VALUE
  special_singleton_class_of(VALUE obj)
  {
@@ -2013,7 +2013,7 @@ index 749cbd5..a038253 100644
  
      rb_define_method(rb_cEncoding, "inspect", enc_inspect, 0);
 diff --git a/enum.c b/enum.c
-index ba0dc94..fed4d92 100644
+index 02ccb27..359a697 100644
 --- a/enum.c
 +++ b/enum.c
 @@ -1207,7 +1207,7 @@ tally_up(st_data_t *group, st_data_t *value, st_data_t arg, int existing)
@@ -2025,7 +2025,7 @@ index ba0dc94..fed4d92 100644
      }
      else {
          Check_Type(tally, T_BIGNUM);
-@@ -4837,7 +4837,7 @@ enum_sum(int argc, VALUE* argv, VALUE obj)
+@@ -4849,7 +4849,7 @@ enum_sum(int argc, VALUE* argv, VALUE obj)
          memo.c = 0.0;
      }
  
@@ -4178,7 +4178,7 @@ index 6e5e86a..3dd2751 100644
  GC_IMPL_FN size_t rb_gc_impl_heap_id_for_size(void *objspace_ptr, size_t size);
  GC_IMPL_FN bool rb_gc_impl_size_allocatable_p(size_t size);
 diff --git a/hash.c b/hash.c
-index 6da8c98..c15a9f2 100644
+index 026d20e..1afe77f 100644
 --- a/hash.c
 +++ b/hash.c
 @@ -176,7 +176,7 @@ any_hash(VALUE a, st_index_t (*other_func)(VALUE))
@@ -5425,7 +5425,7 @@ index 698ab3e..05f876e 100644
  #if __has_builtin(__builtin_rotateright32) && (SIZEOF_VALUE * CHAR_BIT == 32)
      return __builtin_rotateright32(v, n);
 diff --git a/internal/class.h b/internal/class.h
-index 6e2adf4..2fb4451 100644
+index e0b7443..e92c8dd 100644
 --- a/internal/class.h
 +++ b/internal/class.h
 @@ -8,6 +8,9 @@
@@ -5685,10 +5685,10 @@ index d6fea62..7caa141 100644
      switch (chilled_reason) {
        case STR_CHILLED_SYMBOL_TO_S:
 diff --git a/io.c b/io.c
-index 3d2e340..367cc96 100644
+index 738bca9..58dd521 100644
 --- a/io.c
 +++ b/io.c
-@@ -1200,7 +1200,7 @@ internal_read_func(void *ptr)
+@@ -1258,7 +1258,7 @@ internal_read_func(void *ptr)
  
      if (iis->timeout && !iis->nonblock) {
          if (io_internal_wait(iis->th, iis->fptr, 0, RB_WAITFD_IN, iis->timeout) == -1) {
@@ -5697,7 +5697,7 @@ index 3d2e340..367cc96 100644
          }
      }
  
-@@ -1210,7 +1210,7 @@ internal_read_func(void *ptr)
+@@ -1268,7 +1268,7 @@ internal_read_func(void *ptr)
      if (result < 0 && !iis->nonblock) {
          if (io_again_p(errno)) {
              if (io_internal_wait(iis->th, iis->fptr, errno, RB_WAITFD_IN, iis->timeout) == -1) {
@@ -5706,7 +5706,7 @@ index 3d2e340..367cc96 100644
              }
              else {
                  goto retry;
-@@ -1218,7 +1218,7 @@ internal_read_func(void *ptr)
+@@ -1276,7 +1276,7 @@ internal_read_func(void *ptr)
          }
      }
  
@@ -5715,7 +5715,7 @@ index 3d2e340..367cc96 100644
  }
  
  #if defined __APPLE__
-@@ -1235,7 +1235,7 @@ internal_write_func(void *ptr)
+@@ -1293,7 +1293,7 @@ internal_write_func(void *ptr)
  
      if (iis->timeout && !iis->nonblock) {
          if (io_internal_wait(iis->th, iis->fptr, 0, RB_WAITFD_OUT, iis->timeout) == -1) {
@@ -5724,7 +5724,7 @@ index 3d2e340..367cc96 100644
          }
      }
  
-@@ -1246,7 +1246,7 @@ internal_write_func(void *ptr)
+@@ -1304,7 +1304,7 @@ internal_write_func(void *ptr)
          int e = errno;
          if (io_again_p(e)) {
              if (io_internal_wait(iis->th, iis->fptr, errno, RB_WAITFD_OUT, iis->timeout) == -1) {
@@ -5733,7 +5733,7 @@ index 3d2e340..367cc96 100644
              }
              else {
                  goto retry;
-@@ -1254,7 +1254,7 @@ internal_write_func(void *ptr)
+@@ -1312,7 +1312,7 @@ internal_write_func(void *ptr)
          }
      }
  
@@ -5742,7 +5742,7 @@ index 3d2e340..367cc96 100644
  }
  
  #ifdef HAVE_WRITEV
-@@ -1266,7 +1266,7 @@ internal_writev_func(void *ptr)
+@@ -1324,7 +1324,7 @@ internal_writev_func(void *ptr)
  
      if (iis->timeout && !iis->nonblock) {
          if (io_internal_wait(iis->th, iis->fptr, 0, RB_WAITFD_OUT, iis->timeout) == -1) {
@@ -5751,7 +5751,7 @@ index 3d2e340..367cc96 100644
          }
      }
  
-@@ -1276,7 +1276,7 @@ internal_writev_func(void *ptr)
+@@ -1334,7 +1334,7 @@ internal_writev_func(void *ptr)
      if (result < 0 && !iis->nonblock) {
          if (io_again_p(errno)) {
              if (io_internal_wait(iis->th, iis->fptr, errno, RB_WAITFD_OUT, iis->timeout) == -1) {
@@ -5760,7 +5760,7 @@ index 3d2e340..367cc96 100644
              }
              else {
                  goto retry;
-@@ -1284,7 +1284,7 @@ internal_writev_func(void *ptr)
+@@ -1342,7 +1342,7 @@ internal_writev_func(void *ptr)
          }
      }
  
@@ -5769,7 +5769,7 @@ index 3d2e340..367cc96 100644
  }
  #endif
  
-@@ -1876,11 +1876,11 @@ io_binwrite_string(VALUE arg)
+@@ -1940,11 +1940,11 @@ io_binwrite_string(VALUE arg)
          }
          else {
              // The error was unrelated to waiting for it to become writable, so we fail:
@@ -5783,7 +5783,7 @@ index 3d2e340..367cc96 100644
  }
  
  inline static void
-@@ -1932,10 +1932,10 @@ io_binwrite(const char *ptr, long len, rb_io_t *fptr, int nosync)
+@@ -1996,10 +1996,10 @@ io_binwrite(const char *ptr, long len, rb_io_t *fptr, int nosync)
          arg.length = len;
  
          if (!NIL_P(fptr->write_lock)) {
@@ -5796,7 +5796,7 @@ index 3d2e340..367cc96 100644
          }
      }
      else {
-@@ -2119,7 +2119,7 @@ io_binwritev_internal(VALUE arg)
+@@ -2183,7 +2183,7 @@ io_binwritev_internal(VALUE arg)
              }
  
              if (offset == p->total) {
@@ -5805,7 +5805,7 @@ index 3d2e340..367cc96 100644
              }
  
              while (result >= (ssize_t)iov->iov_len) {
-@@ -2130,7 +2130,7 @@ io_binwritev_internal(VALUE arg)
+@@ -2194,7 +2194,7 @@ io_binwritev_internal(VALUE arg)
  
                  if (!--iovcnt) {
                      // I don't believe this code path can ever occur.
@@ -5814,7 +5814,7 @@ index 3d2e340..367cc96 100644
                  }
              }
  
-@@ -2141,11 +2141,11 @@ io_binwritev_internal(VALUE arg)
+@@ -2205,11 +2205,11 @@ io_binwritev_internal(VALUE arg)
              rb_io_check_closed(fptr);
          }
          else {
@@ -5828,7 +5828,7 @@ index 3d2e340..367cc96 100644
  }
  
  static long
-@@ -2197,10 +2197,10 @@ io_binwritev(struct iovec *iov, int iovcnt, rb_io_t *fptr)
+@@ -2261,10 +2261,10 @@ io_binwritev(struct iovec *iov, int iovcnt, rb_io_t *fptr)
      arg.total = total;
  
      if (!NIL_P(fptr->write_lock)) {
@@ -5841,7 +5841,7 @@ index 3d2e340..367cc96 100644
      }
  }
  
-@@ -3643,7 +3643,7 @@ io_readpartial(int argc, VALUE *argv, VALUE io)
+@@ -3707,7 +3707,7 @@ io_readpartial(int argc, VALUE *argv, VALUE io)
  {
      VALUE ret;
  
@@ -5850,7 +5850,7 @@ index 3d2e340..367cc96 100644
      if (NIL_P(ret))
          rb_eof_error();
      return ret;
-@@ -6202,7 +6202,7 @@ pread_internal_call(VALUE _arg)
+@@ -6266,7 +6266,7 @@ pread_internal_call(VALUE _arg)
          VALUE result = rb_fiber_scheduler_io_pread_memory(scheduler, arg->io->self, arg->offset, arg->buf, arg->count, 0);
  
          if (!UNDEF_P(result)) {
@@ -5859,7 +5859,7 @@ index 3d2e340..367cc96 100644
          }
      }
  
-@@ -6293,7 +6293,7 @@ pwrite_internal_call(VALUE _arg)
+@@ -6357,7 +6357,7 @@ pwrite_internal_call(VALUE _arg)
          VALUE result = rb_fiber_scheduler_io_pwrite_memory(scheduler, arg->io->self, arg->offset, arg->buf, arg->count, 0);
  
          if (!UNDEF_P(result)) {
@@ -5868,7 +5868,7 @@ index 3d2e340..367cc96 100644
          }
      }
  
-@@ -7142,8 +7142,8 @@ io_strip_bom(VALUE io)
+@@ -7206,8 +7206,8 @@ io_strip_bom(VALUE io)
      GetOpenFile(io, fptr);
      if (!(fptr->mode & FMODE_READABLE)) return 0;
      if (NIL_P(b1 = rb_io_getbyte(io))) return 0;
@@ -5879,7 +5879,7 @@ index 3d2e340..367cc96 100644
          if (NIL_P(b2 = rb_io_getbyte(io))) break;
          if (b2 == INT2FIX(0xBB) && !NIL_P(b3 = rb_io_getbyte(io))) {
              if (b3 == INT2FIX(0xBF)) {
-@@ -7154,7 +7154,7 @@ io_strip_bom(VALUE io)
+@@ -7218,7 +7218,7 @@ io_strip_bom(VALUE io)
          rb_io_ungetbyte(io, b2);
          break;
  
@@ -5888,7 +5888,7 @@ index 3d2e340..367cc96 100644
          if (NIL_P(b2 = rb_io_getbyte(io))) break;
          if (b2 == INT2FIX(0xFF)) {
              return ENCINDEX_UTF_16BE;
-@@ -7162,7 +7162,7 @@ io_strip_bom(VALUE io)
+@@ -7226,7 +7226,7 @@ io_strip_bom(VALUE io)
          rb_io_ungetbyte(io, b2);
          break;
  
@@ -5897,7 +5897,7 @@ index 3d2e340..367cc96 100644
          if (NIL_P(b2 = rb_io_getbyte(io))) break;
          if (b2 == INT2FIX(0xFE)) {
              b3 = rb_io_getbyte(io);
-@@ -7178,7 +7178,7 @@ io_strip_bom(VALUE io)
+@@ -7242,7 +7242,7 @@ io_strip_bom(VALUE io)
          rb_io_ungetbyte(io, b2);
          break;
  
@@ -5906,7 +5906,7 @@ index 3d2e340..367cc96 100644
          if (NIL_P(b2 = rb_io_getbyte(io))) break;
          if (b2 == INT2FIX(0) && !NIL_P(b3 = rb_io_getbyte(io))) {
              if (b3 == INT2FIX(0xFE) && !NIL_P(b4 = rb_io_getbyte(io))) {
-@@ -10842,7 +10842,7 @@ static VALUE
+@@ -10900,7 +10900,7 @@ static VALUE
  io_advise_internal(void *arg)
  {
      struct io_advise_struct *ptr = arg;
@@ -5915,7 +5915,7 @@ index 3d2e340..367cc96 100644
  }
  
  static VALUE
-@@ -11191,11 +11191,17 @@ rb_f_select(int argc, VALUE *argv, VALUE obj)
+@@ -11249,11 +11249,17 @@ rb_f_select(int argc, VALUE *argv, VALUE obj)
  # define NUM2IOCTLREQ(num) ((int)NUM2LONG(num))
  #endif
  
@@ -5934,7 +5934,7 @@ index 3d2e340..367cc96 100644
  };
  
  static VALUE
-@@ -11207,7 +11213,7 @@ nogvl_ioctl(void *ptr)
+@@ -11265,7 +11271,7 @@ nogvl_ioctl(void *ptr)
  }
  
  static int
@@ -5943,7 +5943,7 @@ index 3d2e340..367cc96 100644
  {
      int retval;
      struct ioctl_arg arg;
-@@ -11406,26 +11412,26 @@ fcntl_narg_len(ioctl_req_t cmd)
+@@ -11464,26 +11470,26 @@ fcntl_narg_len(ioctl_req_t cmd)
  
  #define NARG_SENTINEL 17
  
@@ -5975,7 +5975,7 @@ index 3d2e340..367cc96 100644
          }
          else {
              char *ptr;
-@@ -11445,7 +11451,7 @@ setup_narg(ioctl_req_t cmd, VALUE *argp, long (*narg_len)(ioctl_req_t))
+@@ -11503,7 +11509,7 @@ setup_narg(ioctl_req_t cmd, VALUE *argp, long (*narg_len)(ioctl_req_t))
              /* a little sanity check here */
              ptr = RSTRING_PTR(arg);
              ptr[slen - 1] = NARG_SENTINEL;
@@ -5984,7 +5984,7 @@ index 3d2e340..367cc96 100644
          }
      }
  
-@@ -11474,7 +11480,7 @@ rb_ioctl(VALUE io, VALUE req, VALUE arg)
+@@ -11532,7 +11538,7 @@ rb_ioctl(VALUE io, VALUE req, VALUE arg)
  {
      ioctl_req_t cmd = NUM2IOCTLREQ(req);
      rb_io_t *fptr;
@@ -5993,7 +5993,7 @@ index 3d2e340..367cc96 100644
      int retval;
  
      narg = setup_narg(cmd, &arg, ioctl_narg_len);
-@@ -11517,7 +11523,7 @@ rb_io_ioctl(int argc, VALUE *argv, VALUE io)
+@@ -11575,7 +11581,7 @@ rb_io_ioctl(int argc, VALUE *argv, VALUE io)
  struct fcntl_arg {
      int		fd;
      int 	cmd;
@@ -6002,7 +6002,7 @@ index 3d2e340..367cc96 100644
  };
  
  static VALUE
-@@ -11527,13 +11533,13 @@ nogvl_fcntl(void *ptr)
+@@ -11585,13 +11591,13 @@ nogvl_fcntl(void *ptr)
  
  #if defined(F_DUPFD)
      if (arg->cmd == F_DUPFD)
@@ -6018,7 +6018,7 @@ index 3d2e340..367cc96 100644
  {
      int retval;
      struct fcntl_arg arg;
-@@ -11563,7 +11569,7 @@ rb_fcntl(VALUE io, VALUE req, VALUE arg)
+@@ -11621,7 +11627,7 @@ rb_fcntl(VALUE io, VALUE req, VALUE arg)
  {
      int cmd = NUM2INT(req);
      rb_io_t *fptr;
@@ -6028,7 +6028,7 @@ index 3d2e340..367cc96 100644
  
      narg = setup_narg(cmd, &arg, fcntl_narg_len);
 diff --git a/io_buffer.c b/io_buffer.c
-index 17d37f8..5adc61a 100644
+index 72bf5eb..52e6f86 100644
 --- a/io_buffer.c
 +++ b/io_buffer.c
 @@ -1759,7 +1759,11 @@ io_buffer_resize_copy(VALUE self, struct rb_io_buffer *buffer, size_t size)
@@ -6299,7 +6299,7 @@ index c4dd80c..654ea5a 100644
      return FL_TEST_RAW(obj, flags);
  }
 diff --git a/load.c b/load.c
-index 97831f8..0323e11 100644
+index d428fbe..b1df9d6 100644
 --- a/load.c
 +++ b/load.c
 @@ -187,7 +187,7 @@ get_loaded_features_index_raw(const rb_box_t *box)
@@ -6764,7 +6764,7 @@ index b016917..3c75602 100644
          return;
      }
 diff --git a/prism_compile.c b/prism_compile.c
-index 4b55775..7c5b7c3 100644
+index e01cd4c..18e0dee 100644
 --- a/prism_compile.c
 +++ b/prism_compile.c
 @@ -1235,7 +1235,7 @@ pm_lookup_local_index(rb_iseq_t *iseq, const pm_scope_node_t *scope_node, pm_con
@@ -6794,7 +6794,7 @@ index 4b55775..7c5b7c3 100644
      }
      return dispatch;
  }
-@@ -10525,7 +10525,7 @@ pm_iseq_compile_node(rb_iseq_t *iseq, pm_scope_node_t *node)
+@@ -10538,7 +10538,7 @@ pm_iseq_compile_node(rb_iseq_t *iseq, pm_scope_node_t *node)
      }
  
      CHECK(iseq_setup_insn(iseq, ret));
@@ -6803,7 +6803,7 @@ index 4b55775..7c5b7c3 100644
  }
  
  /**
-@@ -11155,7 +11155,7 @@ pm_parse_process(pm_parse_result_t *result, pm_node_t *node, VALUE *script_lines
+@@ -11168,7 +11168,7 @@ pm_parse_process(pm_parse_result_t *result, pm_node_t *node, VALUE *script_lines
      scope_node->index_lookup_table = st_init_numtable();
      pm_constant_id_list_t *locals = &scope_node->locals;
      for (size_t index = 0; index < locals->size; index++) {
@@ -6813,7 +6813,7 @@ index 4b55775..7c5b7c3 100644
  
      // If we got here, this is a success and we can return Qnil to indicate that
 diff --git a/proc.c b/proc.c
-index b1417a4..2707479 100644
+index 37cbaf8..d9ad477 100644
 --- a/proc.c
 +++ b/proc.c
 @@ -826,7 +826,7 @@ cfunc_proc_new(VALUE klass, VALUE ifunc)
@@ -6844,10 +6844,10 @@ index b1417a4..2707479 100644
      else {
          VALUE methclass, klass, iclass;
 diff --git a/process.c b/process.c
-index 0535b72..dd8eb59 100644
+index 2f7d9e4..7417fcd 100644
 --- a/process.c
 +++ b/process.c
-@@ -3970,6 +3970,10 @@ disable_child_handler_fork_child(struct child_handler_disabler_state *old, char
+@@ -3983,6 +3983,10 @@ disable_child_handler_fork_child(struct child_handler_disabler_state *old, char
      int ret;
  
      for (sig = 1; sig < NSIG; sig++) {
@@ -6858,7 +6858,7 @@ index 0535b72..dd8eb59 100644
          sig_t handler = signal(sig, SIG_DFL);
  
          if (handler == SIG_ERR && errno == EINVAL) {
-@@ -4326,11 +4330,11 @@ exit_status_code(VALUE status)
+@@ -4330,11 +4334,11 @@ exit_status_code(VALUE status)
  {
      int istatus;
  
@@ -6873,7 +6873,7 @@ index 0535b72..dd8eb59 100644
          istatus = EXIT_FAILURE;
          break;
        default:
-@@ -7663,7 +7667,7 @@ p_uid_switch(VALUE obj)
+@@ -7671,7 +7675,7 @@ p_uid_switch(VALUE obj)
          proc_seteuid(uid);
          if (rb_block_given_p()) {
              under_uid_switch = 1;
@@ -6882,7 +6882,7 @@ index 0535b72..dd8eb59 100644
          }
          else {
              return UIDT2NUM(euid);
-@@ -7673,7 +7677,7 @@ p_uid_switch(VALUE obj)
+@@ -7681,7 +7685,7 @@ p_uid_switch(VALUE obj)
          proc_seteuid(SAVED_USER_ID);
          if (rb_block_given_p()) {
              under_uid_switch = 1;
@@ -6891,7 +6891,7 @@ index 0535b72..dd8eb59 100644
          }
          else {
              return UIDT2NUM(uid);
-@@ -7777,7 +7781,7 @@ p_gid_switch(VALUE obj)
+@@ -7785,7 +7789,7 @@ p_gid_switch(VALUE obj)
          proc_setegid(obj, GIDT2NUM(gid));
          if (rb_block_given_p()) {
              under_gid_switch = 1;
@@ -6900,7 +6900,7 @@ index 0535b72..dd8eb59 100644
          }
          else {
              return GIDT2NUM(egid);
-@@ -7787,7 +7791,7 @@ p_gid_switch(VALUE obj)
+@@ -7795,7 +7799,7 @@ p_gid_switch(VALUE obj)
          proc_setegid(obj, GIDT2NUM(SAVED_GROUP_ID));
          if (rb_block_given_p()) {
              under_gid_switch = 1;
@@ -7079,7 +7079,7 @@ index e776617..8f9a35c 100644
      if (neg)
          num = rb_int_uminus(num);
 diff --git a/re.c b/re.c
-index 3e199bb..b19e09a 100644
+index f68c1ca..86147cb 100644
 --- a/re.c
 +++ b/re.c
 @@ -156,7 +156,7 @@ rb_memsearch_qs(const unsigned char *xs, long m, const unsigned char *ys, long n
@@ -7135,7 +7135,7 @@ index 3e199bb..b19e09a 100644
      }
  
 diff --git a/regint.h b/regint.h
-index 9d69e2d..377e91f 100644
+index c3665f0..06162aa 100644
 --- a/regint.h
 +++ b/regint.h
 @@ -53,6 +53,14 @@
@@ -7154,7 +7154,7 @@ index 9d69e2d..377e91f 100644
  #ifndef UNALIGNED_WORD_ACCESS
  # if defined(__i386) || defined(__i386__) || defined(_M_IX86) || \
 diff --git a/ruby.c b/ruby.c
-index 0d60ece..d353779 100644
+index a79639e..14a60ed 100644
 --- a/ruby.c
 +++ b/ruby.c
 @@ -63,8 +63,8 @@
@@ -7233,7 +7233,7 @@ index 5af8f6d..0a3ae32 100644
  #define nd_fl_newline(n) ((n)->flags & NODE_FL_NEWLINE)
  #define nd_set_fl_newline(n) ((n)->flags |= NODE_FL_NEWLINE)
 diff --git a/set.c b/set.c
-index d3cbbdf..b059917 100644
+index f13bc98..ad05b6e 100644
 --- a/set.c
 +++ b/set.c
 @@ -77,7 +77,7 @@ set_ident_hash(st_data_t n)
@@ -7245,7 +7245,7 @@ index d3cbbdf..b059917 100644
      }
  #endif
  
-@@ -249,7 +249,7 @@ static inline void
+@@ -250,7 +250,7 @@ static inline void
  iter_lev_in_flags_set(VALUE set, unsigned long lev)
  {
      SET_ASSERT(lev <= RSET_LEV_MAX);
@@ -7254,7 +7254,7 @@ index d3cbbdf..b059917 100644
  }
  
  static inline bool
-@@ -1562,10 +1562,10 @@ set_flatten_merge_i(st_data_t item, st_data_t arg)
+@@ -1587,10 +1587,10 @@ set_flatten_merge_i(st_data_t item, st_data_t arg)
      if (rb_obj_is_kind_of(item, rb_cSet)) {
          VALUE e_id = rb_obj_id(item);
          VALUE hash = args[2];
@@ -7268,7 +7268,7 @@ index d3cbbdf..b059917 100644
              rb_raise(rb_eArgError, "tried to flatten recursive Set");
            default:
              break;
-@@ -1871,7 +1871,7 @@ static int
+@@ -1899,7 +1899,7 @@ static int
  set_hash_i(st_data_t item, st_data_t(arg))
  {
      st_index_t *hval = (st_index_t *)arg;
@@ -7510,10 +7510,10 @@ index 8937f79..909967e 100644
  
  #ifdef RUBY
 diff --git a/string.c b/string.c
-index e4ed93b..e624661 100644
+index d34cd9a..095d62e 100644
 --- a/string.c
 +++ b/string.c
-@@ -1916,7 +1916,7 @@ ec_str_alloc_heap(struct rb_execution_context_struct *ec, VALUE klass)
+@@ -1917,7 +1917,7 @@ ec_str_alloc_heap(struct rb_execution_context_struct *ec, VALUE klass)
  }
  
  static inline VALUE
@@ -7522,7 +7522,7 @@ index e4ed93b..e624661 100644
  {
      int encidx = 0;
      if ((flags & ENCODING_MASK) == (ENCODING_INLINE_MAX<<ENCODING_SHIFT)) {
-@@ -1928,12 +1928,12 @@ str_duplicate_setup_encoding(VALUE str, VALUE dup, VALUE flags)
+@@ -1929,12 +1929,12 @@ str_duplicate_setup_encoding(VALUE str, VALUE dup, VALUE flags)
      return dup;
  }
  
@@ -7537,7 +7537,7 @@ index e4ed93b..e624661 100644
      long len = RSTRING_LEN(str);
  
      RUBY_ASSERT(STR_EMBED_P(dup));
-@@ -1946,7 +1946,7 @@ str_duplicate_setup_embed(VALUE klass, VALUE str, VALUE dup)
+@@ -1947,7 +1947,7 @@ str_duplicate_setup_embed(VALUE klass, VALUE str, VALUE dup)
  static inline VALUE
  str_duplicate_setup_heap(VALUE klass, VALUE str, VALUE dup)
  {
@@ -7546,7 +7546,7 @@ index e4ed93b..e624661 100644
      VALUE root = str;
      if (FL_TEST_RAW(str, STR_SHARED)) {
          root = RSTRING(str)->as.heap.aux.shared;
-@@ -5697,10 +5697,10 @@ rb_str_aref(VALUE str, VALUE indx)
+@@ -5698,10 +5698,10 @@ rb_str_aref(VALUE str, VALUE indx)
      else {
          /* check if indx is Range */
          long beg, len = str_strlen(str, NULL);
@@ -7560,7 +7560,7 @@ index e4ed93b..e624661 100644
              return Qnil;
            default:
              return rb_str_substr(str, beg, len);
-@@ -6053,10 +6053,10 @@ rb_str_slice_bang(int argc, VALUE *argv, VALUE str)
+@@ -6054,10 +6054,10 @@ rb_str_slice_bang(int argc, VALUE *argv, VALUE str)
          goto squash;
      }
      else {
@@ -7574,7 +7574,7 @@ index e4ed93b..e624661 100644
              beg = NUM2LONG(indx);
              if (!(p = rb_str_subpos(str, beg, &len))) return Qnil;
              if (!len) return Qnil;
-@@ -6742,10 +6742,10 @@ str_byte_aref(VALUE str, VALUE indx)
+@@ -6743,10 +6743,10 @@ str_byte_aref(VALUE str, VALUE indx)
          /* check if indx is Range */
          long beg, len = RSTRING_LEN(str);
  
@@ -7588,7 +7588,7 @@ index e4ed93b..e624661 100644
              return Qnil;
            default:
              return str_byte_substr(str, beg, len, TRUE);
-@@ -9409,7 +9409,7 @@ rb_str_enumerate_lines(int argc, VALUE *argv, VALUE str, VALUE ary)
+@@ -9410,7 +9410,7 @@ rb_str_enumerate_lines(int argc, VALUE *argv, VALUE str, VALUE ary)
              keywords[0] = rb_intern_const("chomp");
          }
          rb_get_kwargs(opts, keywords, 0, 1, &chomp);
@@ -7700,7 +7700,7 @@ index d28b5b4..fe1b592 100644
              return -1;
          }
 diff --git a/thread.c b/thread.c
-index 20245ee..6d544f2 100644
+index 21a39df..d260f77 100644
 --- a/thread.c
 +++ b/thread.c
 @@ -1151,8 +1151,8 @@ thread_join(rb_thread_t *target_th, VALUE timeout, rb_hrtime_t *limit)
@@ -7714,7 +7714,7 @@ index 20245ee..6d544f2 100644
                  RUBY_DEBUG_LOG("terminated target_th:%u status:%s", rb_th_serial(target_th), thread_status_name(target_th, TRUE));
  
                  /* OK. killed. */
-@@ -5292,7 +5292,7 @@ rb_thread_shield_waiting_inc(VALUE b)
+@@ -5300,7 +5300,7 @@ rb_thread_shield_waiting_inc(VALUE b)
      if (w > THREAD_SHIELD_WAITING_MAX)
          rb_raise(rb_eRuntimeError, "waiting count overflow");
      RBASIC(b)->flags &= ~THREAD_SHIELD_WAITING_MASK;
@@ -7723,7 +7723,7 @@ index 20245ee..6d544f2 100644
  }
  
  static inline void
-@@ -5302,7 +5302,7 @@ rb_thread_shield_waiting_dec(VALUE b)
+@@ -5310,7 +5310,7 @@ rb_thread_shield_waiting_dec(VALUE b)
      if (!w) rb_raise(rb_eRuntimeError, "waiting count underflow");
      w--;
      RBASIC(b)->flags &= ~THREAD_SHIELD_WAITING_MASK;
@@ -7733,7 +7733,7 @@ index 20245ee..6d544f2 100644
  
  VALUE
 diff --git a/thread_pthread.c b/thread_pthread.c
-index d599abc..b0ff43c 100644
+index 46e92fa..148f6c4 100644
 --- a/thread_pthread.c
 +++ b/thread_pthread.c
 @@ -75,7 +75,7 @@ static const void *const condattr_monotonic = NULL;
@@ -7843,7 +7843,7 @@ index 9d9cf0a..bcd4881 100644
  %     end
  %   end
 diff --git a/transcode.c b/transcode.c
-index 86e828c..d4a385f 100644
+index 1b4537f..3197da5 100644
 --- a/transcode.c
 +++ b/transcode.c
 @@ -590,12 +590,12 @@ transcode_restartable0(const unsigned char **in_pos, unsigned char **out_pos,
@@ -8096,7 +8096,7 @@ index 4397ae3..140ecaf 100644
          }
      }
 diff --git a/vm.c b/vm.c
-index 9a5bfe1..1002a27 100644
+index 128b2a1..e752f6f 100644
 --- a/vm.c
 +++ b/vm.c
 @@ -890,7 +890,7 @@ vm_set_top_stack(rb_execution_context_t *ec, const rb_iseq_t *iseq, const rb_box
@@ -8252,7 +8252,7 @@ index 9a5bfe1..1002a27 100644
                    recv, GC_GUARDED_PTR(box),
                    (VALUE)vm_cref_new_toplevel(ec), /* cref or me */
                    0, reg_cfp->sp, 0, 0);
-@@ -3893,7 +3893,7 @@ rb_ec_initialize_vm_stack(rb_execution_context_t *ec, VALUE *stack, size_t size)
+@@ -3895,7 +3895,7 @@ rb_ec_initialize_vm_stack(rb_execution_context_t *ec, VALUE *stack, size_t size)
  
      vm_push_frame(ec,
          NULL /* dummy iseq */,
@@ -8262,7 +8262,7 @@ index 9a5bfe1..1002a27 100644
          0 /* dummy cref/me */,
          0 /* dummy pc */, ec->vm_stack, 0, 0
 diff --git a/vm_args.c b/vm_args.c
-index 8d4042e..d031904 100644
+index 8946022..0e99120 100644
 --- a/vm_args.c
 +++ b/vm_args.c
 @@ -588,6 +588,7 @@ flatten_rest_args(rb_execution_context_t * const ec, struct args_info *args, VAL
@@ -8960,7 +8960,7 @@ index bd8c170..b4a31eb 100644
 +
 +#undef VM_SENDISH
 diff --git a/vm_insnhelper.c b/vm_insnhelper.c
-index c508483..4f566d2 100644
+index 35f3097..be537ff 100644
 --- a/vm_insnhelper.c
 +++ b/vm_insnhelper.c
 @@ -140,7 +140,7 @@ callable_method_entry_p(const rb_callable_method_entry_t *cme)
@@ -9069,7 +9069,7 @@ index c508483..4f566d2 100644
                  val = default_value;
              }
          }
-@@ -1790,7 +1790,7 @@ vm_throw_start(const rb_execution_context_t *ec, rb_control_frame_t *const reg_c
+@@ -1788,7 +1788,7 @@ vm_throw_start(const rb_execution_context_t *ec, rb_control_frame_t *const reg_c
              while (escape_cfp < eocfp) {
                  if (escape_cfp->ep == ep) {
                      const rb_iseq_t *const iseq = escape_cfp->iseq;
@@ -9078,7 +9078,7 @@ index c508483..4f566d2 100644
                      const struct iseq_catch_table *const ct = ISEQ_BODY(iseq)->catch_table;
                      unsigned int i;
  
-@@ -2038,7 +2038,7 @@ vm_ccs_create(VALUE klass, VALUE cc_tbl, ID mid, const rb_callable_method_entry_
+@@ -2036,7 +2036,7 @@ vm_ccs_create(VALUE klass, VALUE cc_tbl, ID mid, const rb_callable_method_entry_
      int initial_capa = 2;
      struct rb_class_cc_entries *ccs = ruby_xmalloc(vm_ccs_alloc_size(initial_capa));
  #if VM_CHECK_MODE > 0
@@ -9087,7 +9087,7 @@ index c508483..4f566d2 100644
  #endif
      ccs->capa = initial_capa;
      ccs->len = 0;
-@@ -2062,7 +2062,7 @@ vm_ccs_push(VALUE cc_tbl, ID mid, struct rb_class_cc_entries *ccs, const struct
+@@ -2060,7 +2060,7 @@ vm_ccs_push(VALUE cc_tbl, ID mid, struct rb_class_cc_entries *ccs, const struct
          ccs->capa *= 2;
          ccs = ruby_xrealloc(ccs, vm_ccs_alloc_size(ccs->capa));
  #if VM_CHECK_MODE > 0
@@ -9096,7 +9096,7 @@ index c508483..4f566d2 100644
  #endif
          // GC?
          rb_managed_id_table_insert(cc_tbl, mid, (VALUE)ccs);
-@@ -2258,7 +2258,7 @@ retry:
+@@ -2256,7 +2256,7 @@ retry:
                          RB_DEBUG_COUNTER_INC(cc_found_in_ccs);
  
                          VM_ASSERT(vm_cc_cme(ccs_cc)->called_id == mid);
@@ -9105,7 +9105,7 @@ index c508483..4f566d2 100644
                          VM_ASSERT(!METHOD_ENTRY_INVALIDATED(vm_cc_cme(ccs_cc)));
  
                          return ccs_cc;
-@@ -2308,7 +2308,7 @@ rb_vm_search_method_slowpath(const struct rb_callinfo *ci, VALUE klass)
+@@ -2306,7 +2306,7 @@ rb_vm_search_method_slowpath(const struct rb_callinfo *ci, VALUE klass)
  
      VM_ASSERT(cc);
      VM_ASSERT(IMEMO_TYPE_P(cc, imemo_callcache));
@@ -9114,7 +9114,7 @@ index c508483..4f566d2 100644
      VM_ASSERT(cc == vm_cc_empty() || callable_method_entry_p(vm_cc_cme(cc)));
      VM_ASSERT(cc == vm_cc_empty() || !METHOD_ENTRY_INVALIDATED(vm_cc_cme(cc)));
      VM_ASSERT(cc == vm_cc_empty() || vm_cc_cme(cc)->called_id == vm_ci_mid(ci));
-@@ -2316,6 +2316,19 @@ rb_vm_search_method_slowpath(const struct rb_callinfo *ci, VALUE klass)
+@@ -2314,6 +2314,19 @@ rb_vm_search_method_slowpath(const struct rb_callinfo *ci, VALUE klass)
      return cc;
  }
  
@@ -9134,7 +9134,7 @@ index c508483..4f566d2 100644
  static const struct rb_callcache *
  vm_search_method_slowpath0(VALUE cd_owner, struct rb_call_data *cd, VALUE klass)
  {
-@@ -2326,7 +2339,7 @@ vm_search_method_slowpath0(VALUE cd_owner, struct rb_call_data *cd, VALUE klass)
+@@ -2324,7 +2337,7 @@ vm_search_method_slowpath0(VALUE cd_owner, struct rb_call_data *cd, VALUE klass)
      const struct rb_callcache *cc = rb_vm_search_method_slowpath(cd->ci, klass);
  
  #if OPT_INLINE_METHOD_CACHE
@@ -9143,7 +9143,7 @@ index c508483..4f566d2 100644
  
      const struct rb_callcache *empty_cc = &vm_empty_cc;
      if (cd_owner && cc != empty_cc) {
-@@ -2364,7 +2377,7 @@ ALWAYS_INLINE(static const struct rb_callcache *vm_search_method_fastpath(VALUE
+@@ -2362,7 +2375,7 @@ ALWAYS_INLINE(static const struct rb_callcache *vm_search_method_fastpath(VALUE
  static const struct rb_callcache *
  vm_search_method_fastpath(VALUE cd_owner, struct rb_call_data *cd, VALUE klass)
  {
@@ -9152,7 +9152,7 @@ index c508483..4f566d2 100644
  
      VM_ASSERT_TYPE2(klass, T_CLASS, T_ICLASS);
  
-@@ -2493,8 +2506,8 @@ FIXNUM_2_P(VALUE a, VALUE b)
+@@ -2491,8 +2504,8 @@ FIXNUM_2_P(VALUE a, VALUE b)
      /* FIXNUM_P(a) && FIXNUM_P(b)
       * == ((a & 1) && (b & 1))
       * == a & b & 1 */
@@ -9163,7 +9163,7 @@ index c508483..4f566d2 100644
      SIGNED_VALUE z = x & y & 1;
      return z == 1;
  }
-@@ -2507,8 +2520,8 @@ FLONUM_2_P(VALUE a, VALUE b)
+@@ -2505,8 +2518,8 @@ FLONUM_2_P(VALUE a, VALUE b)
       * == ((a & 3) == 2) && ((b & 3) == 2)
       * == ! ((a ^ 2) | (b ^ 2) & 3)
       */
@@ -9174,7 +9174,7 @@ index c508483..4f566d2 100644
      SIGNED_VALUE z = ((x ^ 2) | (y ^ 2)) & 3;
      return !z;
  #else
-@@ -2702,9 +2715,9 @@ rb_vm_base_ptr(const rb_control_frame_t *cfp)
+@@ -2700,9 +2713,9 @@ rb_vm_base_ptr(const rb_control_frame_t *cfp)
  
  #include "vm_args.c"
  
@@ -9186,7 +9186,7 @@ index c508483..4f566d2 100644
  static VALUE vm_call_super_method(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp, struct rb_calling_info *calling);
  static VALUE vm_call_method_nome(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_calling_info *calling);
  static VALUE vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_calling_info *calling);
-@@ -2717,7 +2730,7 @@ vm_call_iseq_setup_tailcall_0start(rb_execution_context_t *ec, rb_control_frame_
+@@ -2715,7 +2728,7 @@ vm_call_iseq_setup_tailcall_0start(rb_execution_context_t *ec, rb_control_frame_
  {
      RB_DEBUG_COUNTER_INC(ccf_iseq_setup_tailcall_0start);
  
@@ -9195,7 +9195,7 @@ index c508483..4f566d2 100644
  }
  
  static VALUE
-@@ -3048,7 +3061,7 @@ vm_call_iseq_setup_tailcall_opt_start(rb_execution_context_t *ec, rb_control_fra
+@@ -3046,7 +3059,7 @@ vm_call_iseq_setup_tailcall_opt_start(rb_execution_context_t *ec, rb_control_fra
      }
  #endif
  
@@ -9204,7 +9204,7 @@ index c508483..4f566d2 100644
  }
  
  static void
-@@ -3155,12 +3168,12 @@ warn_unused_block(const rb_callable_method_entry_t *cme, const rb_iseq_t *iseq,
+@@ -3153,12 +3166,12 @@ warn_unused_block(const rb_callable_method_entry_t *cme, const rb_iseq_t *iseq,
      bool strict_unused_block = rb_warning_category_enabled_p(RB_WARN_CATEGORY_STRICT_UNUSED_BLOCK);
  
      union {
@@ -9220,7 +9220,7 @@ index c508483..4f566d2 100644
      };
  
      // relax check
-@@ -3174,11 +3187,12 @@ warn_unused_block(const rb_callable_method_entry_t *cme, const rb_iseq_t *iseq,
+@@ -3172,11 +3185,12 @@ warn_unused_block(const rb_callable_method_entry_t *cme, const rb_iseq_t *iseq,
  
      // strict check
      // make unique key from pc and me->def pointer
@@ -9235,7 +9235,7 @@ index c508483..4f566d2 100644
  
      if (0) {
          fprintf(stderr, "SIZEOF_VALUE:%d\n", SIZEOF_VALUE);
-@@ -3206,18 +3220,18 @@ warn_unused_block(const rb_callable_method_entry_t *cme, const rb_iseq_t *iseq,
+@@ -3204,18 +3218,18 @@ warn_unused_block(const rb_callable_method_entry_t *cme, const rb_iseq_t *iseq,
  
  static inline int
  vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
@@ -9257,7 +9257,7 @@ index c508483..4f566d2 100644
      }
  
      if (LIKELY(!(vm_ci_flag(ci) & VM_CALL_KW_SPLAT))) {
-@@ -3227,13 +3241,13 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
+@@ -3225,13 +3239,13 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
              CALLER_SETUP_ARG(cfp, calling, ci, lead_num);
  
              if (calling->argc != lead_num) {
@@ -9273,7 +9273,7 @@ index c508483..4f566d2 100644
                  if ((iseq->body->builtin_attrs & BUILTIN_ATTR_SINGLE_NOARG_LEAF) && ruby_vm_c_events_enabled == 0) {
                      VM_ASSERT(iseq->body->builtin_attrs & BUILTIN_ATTR_LEAF);
                      vm_cc_bf_set(cc, (void *)iseq->body->iseq_encoded[1]);
-@@ -3256,18 +3270,18 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
+@@ -3254,18 +3268,18 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
              const int opt = argc - lead_num;
  
              if (opt < 0 || opt > opt_num) {
@@ -9295,7 +9295,7 @@ index c508483..4f566d2 100644
              }
  
              /* initialize opt vars for self-references */
-@@ -3292,10 +3306,10 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
+@@ -3290,10 +3304,10 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
                      MEMCPY(ci_kws, argv + lead_num, VALUE, ci_kw_len);
  
                      VALUE *const klocals = argv + kw_param->bits_start - kw_param->num;
@@ -9308,7 +9308,7 @@ index c508483..4f566d2 100644
  
                      return 0;
                  }
-@@ -3303,12 +3317,12 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
+@@ -3301,12 +3315,12 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
              else if (argc == lead_num) {
                  /* no kwarg */
                  VALUE *const klocals = argv + kw_param->bits_start - kw_param->num;
@@ -9323,7 +9323,7 @@ index c508483..4f566d2 100644
                  }
  
                  return 0;
-@@ -3366,7 +3380,7 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
+@@ -3364,7 +3378,7 @@ vm_callee_setup_arg(rb_execution_context_t *ec, struct rb_calling_info *calling,
          return 0;
      }
  
@@ -9332,7 +9332,7 @@ index c508483..4f566d2 100644
  }
  
  static void
-@@ -3443,15 +3457,15 @@ vm_call_iseq_setup(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct r
+@@ -3441,15 +3455,15 @@ vm_call_iseq_setup(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct r
  {
      RB_DEBUG_COUNTER_INC(ccf_iseq_setup);
  
@@ -9352,7 +9352,7 @@ index c508483..4f566d2 100644
  }
  
  static VALUE
-@@ -3459,8 +3473,8 @@ vm_call_iseq_fwd_setup(rb_execution_context_t *ec, rb_control_frame_t *cfp, stru
+@@ -3457,8 +3471,8 @@ vm_call_iseq_fwd_setup(rb_execution_context_t *ec, rb_control_frame_t *cfp, stru
  {
      RB_DEBUG_COUNTER_INC(ccf_iseq_setup);
  
@@ -9363,7 +9363,7 @@ index c508483..4f566d2 100644
      int param_size = ISEQ_BODY(iseq)->param.size;
      int local_size = ISEQ_BODY(iseq)->local_table_size;
  
-@@ -3470,22 +3484,21 @@ vm_call_iseq_fwd_setup(rb_execution_context_t *ec, rb_control_frame_t *cfp, stru
+@@ -3468,22 +3482,21 @@ vm_call_iseq_fwd_setup(rb_execution_context_t *ec, rb_control_frame_t *cfp, stru
      local_size = local_size + vm_ci_argc(calling->cd->ci);
      param_size = param_size + vm_ci_argc(calling->cd->ci);
  
@@ -9391,7 +9391,7 @@ index c508483..4f566d2 100644
      }
  }
  
-@@ -3498,7 +3511,7 @@ vm_call_iseq_setup_normal(rb_execution_context_t *ec, rb_control_frame_t *cfp, s
+@@ -3496,7 +3509,7 @@ vm_call_iseq_setup_normal(rb_execution_context_t *ec, rb_control_frame_t *cfp, s
      VALUE *sp = argv + param_size;
      cfp->sp = argv - 1 /* recv */;
  
@@ -9400,7 +9400,7 @@ index c508483..4f566d2 100644
                    calling->block_handler, (VALUE)me,
                    ISEQ_BODY(iseq)->iseq_encoded + opt_pc, sp,
                    local_size - param_size,
-@@ -3507,16 +3520,14 @@ vm_call_iseq_setup_normal(rb_execution_context_t *ec, rb_control_frame_t *cfp, s
+@@ -3505,16 +3518,14 @@ vm_call_iseq_setup_normal(rb_execution_context_t *ec, rb_control_frame_t *cfp, s
  }
  
  static inline VALUE
@@ -9419,7 +9419,7 @@ index c508483..4f566d2 100644
  
      if (VM_BH_FROM_CFP_P(calling->block_handler, cfp)) {
          struct rb_captured_block *dst_captured = VM_CFP_TO_CAPTURED_BLOCK(RUBY_VM_PREVIOUS_CONTROL_FRAME(cfp));
-@@ -3544,7 +3555,7 @@ vm_call_iseq_setup_tailcall(rb_execution_context_t *ec, rb_control_frame_t *cfp,
+@@ -3542,7 +3553,7 @@ vm_call_iseq_setup_tailcall(rb_execution_context_t *ec, rb_control_frame_t *cfp,
          *sp++ = src_argv[i];
      }
  
@@ -9428,7 +9428,7 @@ index c508483..4f566d2 100644
                    calling->recv, calling->block_handler, (VALUE)me,
                    ISEQ_BODY(iseq)->iseq_encoded + opt_pc, sp,
                    ISEQ_BODY(iseq)->local_table_size - ISEQ_BODY(iseq)->param.size,
-@@ -3890,7 +3901,7 @@ vm_call_cfunc_with_frame_(rb_execution_context_t *ec, rb_control_frame_t *reg_cf
+@@ -3888,7 +3899,7 @@ vm_call_cfunc_with_frame_(rb_execution_context_t *ec, rb_control_frame_t *reg_cf
  
      VALUE recv = calling->recv;
      VALUE block_handler = calling->block_handler;
@@ -9437,7 +9437,7 @@ index c508483..4f566d2 100644
  
      if (UNLIKELY(calling->kw_splat)) {
          frame_type |= VM_FRAME_FLAG_CFRAME_KW;
-@@ -3901,7 +3912,7 @@ vm_call_cfunc_with_frame_(rb_execution_context_t *ec, rb_control_frame_t *reg_cf
+@@ -3899,7 +3910,7 @@ vm_call_cfunc_with_frame_(rb_execution_context_t *ec, rb_control_frame_t *reg_cf
      RUBY_DTRACE_CMETHOD_ENTRY_HOOK(ec, me->owner, me->def->original_id);
      EXEC_EVENT_HOOK(ec, RUBY_EVENT_C_CALL, recv, me->def->original_id, vm_ci_mid(ci), me->owner, Qundef);
  
@@ -9446,7 +9446,7 @@ index c508483..4f566d2 100644
                    block_handler, (VALUE)me,
                    0, ec->cfp->sp, 0, 0);
  
-@@ -3932,13 +3943,13 @@ rb_vm_push_cfunc_frame(const rb_callable_method_entry_t *cme, int recv_idx)
+@@ -3930,13 +3941,13 @@ rb_vm_push_cfunc_frame(const rb_callable_method_entry_t *cme, int recv_idx)
      rb_execution_context_t *ec = GET_EC();
      VALUE *sp = ec->cfp->sp;
      VALUE recv = *(sp - recv_idx - 1);
@@ -9462,7 +9462,7 @@ index c508483..4f566d2 100644
  }
  
  // If true, cc->call needs to include `CALLER_SETUP_ARG` (i.e. can't be skipped in fastpath)
-@@ -4067,17 +4078,25 @@ vm_call_cfunc(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp, struct rb
+@@ -4065,17 +4076,25 @@ vm_call_cfunc(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp, struct rb
  }
  
  static VALUE
@@ -9491,7 +9491,7 @@ index c508483..4f566d2 100644
  {
      RB_DEBUG_COUNTER_INC(ccf_attrset);
      VALUE val = *(cfp->sp - 1);
-@@ -4085,7 +4104,7 @@ vm_call_attrset_direct(rb_execution_context_t *ec, rb_control_frame_t *cfp, cons
+@@ -4083,7 +4102,7 @@ vm_call_attrset_direct(rb_execution_context_t *ec, rb_control_frame_t *cfp, cons
      attr_index_t index;
      shape_id_t dest_shape_id;
      vm_cc_atomic_shape_and_index(cc, &dest_shape_id, &index);
@@ -9500,7 +9500,7 @@ index c508483..4f566d2 100644
      rb_check_frozen(obj);
      VALUE res = vm_setivar(obj, id, val, dest_shape_id, index);
      if (UNDEF_P(res)) {
-@@ -4117,7 +4136,7 @@ vm_call_attrset_direct(rb_execution_context_t *ec, rb_control_frame_t *cfp, cons
+@@ -4115,7 +4134,7 @@ vm_call_attrset_direct(rb_execution_context_t *ec, rb_control_frame_t *cfp, cons
  static VALUE
  vm_call_attrset(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_calling_info *calling)
  {
@@ -9509,7 +9509,7 @@ index c508483..4f566d2 100644
  }
  
  static inline VALUE
-@@ -4176,13 +4195,13 @@ vm_call_iseq_bmethod(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct
+@@ -4174,13 +4193,13 @@ vm_call_iseq_bmethod(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct
          opt_pc = vm_callee_setup_block_arg(ec, calling, calling->cd->ci, iseq, argv, arg_setup_method);
      }
      else {
@@ -9525,7 +9525,7 @@ index c508483..4f566d2 100644
                    calling->recv,
                    VM_GUARDED_PREV_EP(captured->ep),
                    (VALUE)cme,
-@@ -4701,9 +4720,22 @@ vm_call_refined(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_c
+@@ -4699,9 +4718,22 @@ vm_call_refined(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_c
      const rb_callable_method_entry_t *ref_cme = search_refined_method(ec, cfp, calling);
  
      if (ref_cme) {
@@ -9549,7 +9549,7 @@ index c508483..4f566d2 100644
              return vm_call_method(ec, cfp, calling);
          }
          else {
-@@ -4711,6 +4743,7 @@ vm_call_refined(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_c
+@@ -4709,6 +4741,7 @@ vm_call_refined(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_c
              calling->cc= ref_cc;
              return vm_call_method(ec, cfp, calling);
          }
@@ -9557,7 +9557,7 @@ index c508483..4f566d2 100644
      }
      else {
          return vm_call_method_nome(ec, cfp, calling);
-@@ -4765,76 +4798,97 @@ vm_call_opt_block_call(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp,
+@@ -4763,76 +4796,97 @@ vm_call_opt_block_call(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp,
  }
  
  static VALUE
@@ -9680,7 +9680,7 @@ index c508483..4f566d2 100644
        case OPTIMIZED_METHOD_TYPE_SEND:
          CC_SET_FASTPATH(cc, vm_call_opt_send, TRUE);
          return vm_call_opt_send(ec, cfp, calling);
-@@ -4849,10 +4903,10 @@ vm_call_optimized(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb
+@@ -4847,10 +4901,10 @@ vm_call_optimized(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb
          rb_check_arity(calling->argc, 0, 0);
  
          VALUE v;
@@ -9694,7 +9694,7 @@ index c508483..4f566d2 100644
          return v;
        }
        case OPTIMIZED_METHOD_TYPE_STRUCT_ASET: {
-@@ -4860,10 +4914,10 @@ vm_call_optimized(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb
+@@ -4858,10 +4912,10 @@ vm_call_optimized(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb
          rb_check_arity(calling->argc, 1, 1);
  
          VALUE v;
@@ -9708,7 +9708,7 @@ index c508483..4f566d2 100644
          return v;
        }
        default:
-@@ -4906,8 +4960,8 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
+@@ -4904,8 +4958,8 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
  
          if (vm_cc_markable(cc)) {
              vm_cc_attr_index_initialize(cc, INVALID_SHAPE_ID);
@@ -9719,7 +9719,7 @@ index c508483..4f566d2 100644
                                  CC_SET_FASTPATH(cc, vm_call_attrset, !(vm_ci_flag(ci) & aset_mask)));
          }
          else {
-@@ -4916,8 +4970,8 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
+@@ -4914,8 +4968,8 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
                      (imemo_callcache << FL_USHIFT) |
                      VM_CALLCACHE_UNMARKABLE |
                      VM_CALLCACHE_ON_STACK,
@@ -9730,7 +9730,7 @@ index c508483..4f566d2 100644
                      .call_ = cc->call_,
                      .aux_  = {
                          .attr = {
-@@ -4926,8 +4980,8 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
+@@ -4924,8 +4978,8 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
                      },
              });
  
@@ -9741,7 +9741,7 @@ index c508483..4f566d2 100644
                                  CC_SET_FASTPATH(cc, vm_call_attrset, !(vm_ci_flag(ci) & aset_mask)));
          }
          return v;
-@@ -4937,8 +4991,8 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
+@@ -4935,8 +4989,8 @@ vm_call_method_each_type(rb_execution_context_t *ec, rb_control_frame_t *cfp, st
          rb_check_arity(calling->argc, 0, 0);
          vm_cc_attr_index_initialize(cc, INVALID_SHAPE_ID);
          const unsigned int ivar_mask = (VM_CALL_ARGS_SPLAT | VM_CALL_KW_SPLAT | VM_CALL_FORWARDING);
@@ -9752,7 +9752,7 @@ index c508483..4f566d2 100644
                              CC_SET_FASTPATH(cc, vm_call_ivar, !(vm_ci_flag(ci) & ivar_mask)));
          return v;
  
-@@ -5045,6 +5099,10 @@ vm_call_method(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_ca
+@@ -5043,6 +5097,10 @@ vm_call_method(rb_execution_context_t *ec, rb_control_frame_t *cfp, struct rb_ca
                      /* caching method info to dummy cc */
                      VM_ASSERT(vm_cc_cme(cc) != NULL);
                      struct rb_callcache cc_on_stack = *cc;
@@ -9763,7 +9763,7 @@ index c508483..4f566d2 100644
                      FL_SET_RAW((VALUE)&cc_on_stack, VM_CALLCACHE_UNMARKABLE);
                      calling->cc = &cc_on_stack;
                      return vm_call_method_each_type(ec, cfp, calling);
-@@ -5175,7 +5233,7 @@ vm_search_super_method(const rb_control_frame_t *reg_cfp, struct rb_call_data *c
+@@ -5173,7 +5231,7 @@ vm_search_super_method(const rb_control_frame_t *reg_cfp, struct rb_call_data *c
      if (!klass) {
          /* bound instance method of module */
          cc = vm_cc_new(Qundef, NULL, vm_call_method_missing, cc_type_super);
@@ -9772,7 +9772,7 @@ index c508483..4f566d2 100644
      }
      else {
          cc = vm_search_method_fastpath((VALUE)reg_cfp->iseq, cd, klass);
-@@ -5184,16 +5242,17 @@ vm_search_super_method(const rb_control_frame_t *reg_cfp, struct rb_call_data *c
+@@ -5182,16 +5240,17 @@ vm_search_super_method(const rb_control_frame_t *reg_cfp, struct rb_call_data *c
          // define_method can cache for different method id
          if (cached_cme == NULL) {
              // empty_cc_for_super is not markable object
@@ -9793,7 +9793,7 @@ index c508483..4f566d2 100644
              }
          }
          else {
-@@ -5261,7 +5320,7 @@ vm_yield_with_cfunc(rb_execution_context_t *ec,
+@@ -5259,7 +5318,7 @@ vm_yield_with_cfunc(rb_execution_context_t *ec,
      }
  
      vm_push_frame(ec, (const rb_iseq_t *)captured->code.ifunc,
@@ -9802,7 +9802,7 @@ index c508483..4f566d2 100644
                    self,
                    VM_GUARDED_PREV_EP(captured->ep),
                    (VALUE)me,
-@@ -5349,7 +5408,7 @@ vm_callee_setup_block_arg(rb_execution_context_t *ec, struct rb_calling_info *ca
+@@ -5347,7 +5406,7 @@ vm_callee_setup_block_arg(rb_execution_context_t *ec, struct rb_calling_info *ca
          return 0;
      }
      else {
@@ -9811,7 +9811,7 @@ index c508483..4f566d2 100644
      }
  }
  
-@@ -5388,7 +5447,7 @@ vm_invoke_iseq_block(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp,
+@@ -5386,7 +5445,7 @@ vm_invoke_iseq_block(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp,
      SET_SP(rsp);
  
      vm_push_frame(ec, iseq,
@@ -9820,7 +9820,7 @@ index c508483..4f566d2 100644
                    captured->self,
                    VM_GUARDED_PREV_EP(captured->ep), 0,
                    ISEQ_BODY(iseq)->iseq_encoded + opt_pc,
-@@ -6108,19 +6167,20 @@ enum method_explorer_type {
+@@ -6106,19 +6165,20 @@ enum method_explorer_type {
  };
  
  static inline VALUE
@@ -9844,7 +9844,7 @@ index c508483..4f566d2 100644
          .block_handler = block_handler,
          .kw_splat = IS_ARGS_KW_SPLAT(ci) > 0,
          .recv = recv,
-@@ -6130,20 +6190,32 @@ vm_sendish(
+@@ -6128,20 +6188,32 @@ vm_sendish(
  
      switch (method_explorer) {
        case mexp_search_method:
@@ -9882,7 +9882,7 @@ index c508483..4f566d2 100644
  VALUE
  rb_vm_send(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp, CALL_DATA cd, ISEQ blockiseq)
  {
-@@ -6167,7 +6239,7 @@ rb_vm_sendforward(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp, CALL_
+@@ -6165,7 +6237,7 @@ rb_vm_sendforward(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp, CALL_
      VALUE val = vm_sendish(ec, GET_CFP(), &adjusted_cd.cd, bh, mexp_search_method);
  
      if (cd->cc != adjusted_cd.cd.cc && vm_cc_markable(adjusted_cd.cd.cc)) {
@@ -9891,7 +9891,7 @@ index c508483..4f566d2 100644
      }
  
      VM_EXEC(ec, val);
-@@ -6223,7 +6295,7 @@ rb_vm_invokesuperforward(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp
+@@ -6221,7 +6293,7 @@ rb_vm_invokesuperforward(rb_execution_context_t *ec, rb_control_frame_t *reg_cfp
      VALUE val = vm_sendish(ec, GET_CFP(), &adjusted_cd.cd, bh, mexp_search_super);
  
      if (cd->cc != adjusted_cd.cd.cc && vm_cc_markable(adjusted_cd.cd.cc)) {
@@ -9900,7 +9900,7 @@ index c508483..4f566d2 100644
      }
  
      VM_EXEC(ec, val);
-@@ -6565,7 +6637,7 @@ vm_ic_track_const_chain(rb_control_frame_t *cfp, IC ic, const ID *segments)
+@@ -6563,7 +6635,7 @@ vm_ic_track_const_chain(rb_control_frame_t *cfp, IC ic, const ID *segments)
  
  // For JIT inlining
  static inline bool
@@ -9909,7 +9909,7 @@ index c508483..4f566d2 100644
  {
      if ((flags & IMEMO_CONST_CACHE_SHAREABLE) || rb_ractor_main_p()) {
          VM_ASSERT(ractor_incidental_shareable_p(flags & IMEMO_CONST_CACHE_SHAREABLE, value));
-@@ -7004,7 +7076,7 @@ vm_opt_and(VALUE recv, VALUE obj)
+@@ -7002,7 +7074,7 @@ vm_opt_and(VALUE recv, VALUE obj)
      // will be 1 on both.  1 & 1 == 1, so the result value will also
      // be a fixnum.  If either side is *not* a fixnum, then the tag bit
      // will be 0, and we return Qundef.
@@ -9918,7 +9918,7 @@ index c508483..4f566d2 100644
  
      if (FIXNUM_P(ret) &&
          BASIC_OP_UNREDEFINED_P(BOP_AND, INTEGER_REDEFINED_OP_FLAG)) {
-@@ -7020,7 +7092,7 @@ vm_opt_or(VALUE recv, VALUE obj)
+@@ -7018,7 +7090,7 @@ vm_opt_or(VALUE recv, VALUE obj)
  {
      if (FIXNUM_2_P(recv, obj) &&
          BASIC_OP_UNREDEFINED_P(BOP_OR, INTEGER_REDEFINED_OP_FLAG)) {
@@ -9927,7 +9927,7 @@ index c508483..4f566d2 100644
      }
      else {
          return Qundef;
-@@ -7108,9 +7180,9 @@ vm_opt_length(VALUE recv, int bop)
+@@ -7106,9 +7178,9 @@ vm_opt_length(VALUE recv, int bop)
  static VALUE
  vm_opt_empty_p(VALUE recv)
  {
@@ -9940,7 +9940,7 @@ index c508483..4f566d2 100644
        default: return Qfalse;
      }
  }
-@@ -7135,12 +7207,12 @@ vm_opt_nil_p(const rb_iseq_t *iseq, CALL_DATA cd, VALUE recv)
+@@ -7133,12 +7205,12 @@ vm_opt_nil_p(const rb_iseq_t *iseq, CALL_DATA cd, VALUE recv)
  static VALUE
  fix_succ(VALUE x)
  {
@@ -9956,7 +9956,7 @@ index c508483..4f566d2 100644
          /* 0x7FFF_FFFF == LONG2FIX(0x3FFF_FFFF)
           * 0x3FFF_FFFF + 1 == 0x4000_0000, which is a Bignum. */
          return rb_uint2big(1UL << (SIZEOF_LONG * CHAR_BIT - 2));
-@@ -7379,7 +7451,7 @@ Init_vm_stack_canary(void)
+@@ -7377,7 +7449,7 @@ Init_vm_stack_canary(void)
  {
      /* This has to be called _after_ our PRNG is properly set up. */
      int n = ruby_fill_random_bytes(&vm_stack_canary, sizeof vm_stack_canary, false);

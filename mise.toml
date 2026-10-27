@@ -1,0 +1,38 @@
+[tools]
+python = "3.15.0"
+hk = "1.45.0"
+gitleaks = "8.30.1"
+
+[env]
+_.file = ".env"
+
+[tasks.build]
+description = "Build matching Ruby/Fil-C build-stage and runtime images from verified sources"
+run = "bash port/build-release.sh"
+
+[tasks.test]
+description = "Run runtime, native-extension and cache/concurrency system checks"
+depends = ["build", "test:version-lints"]
+sources = ["example/Dockerfile", "example/.dockerignore", "example/*.patch", "example/*.sh", "example/regressions/*.rb", "ruby-4.0.9-filc.patch", "port/build-release.sh", "port/test-release.sh", "mise.toml"]
+run = "bash port/test-release.sh"
+
+[tasks."test:version-lints"]
+description = "Exercise stale pins, ambiguous pins and network failures through the lint CLIs"
+sources = ["port/check-latest-version.py", "port/test-version-lints.py", "example/Dockerfile"]
+run = "python3 -I port/test-version-lints.py"
+
+[tasks.lint]
+description = "Check upstream version freshness and working-tree secrets"
+depends = ["lint:ruby-version", "lint:fil-c-version", "lint:secrets"]
+
+[tasks."lint:ruby-version"]
+description = "Require the latest stable Ruby release in the Docker build"
+run = "python3 -I port/check-latest-version.py ruby"
+
+[tasks."lint:fil-c-version"]
+description = "Require the latest stable Fil-C release in the Docker build"
+run = "python3 -I port/check-latest-version.py fil-c"
+
+[tasks."lint:secrets"]
+description = "Scan the working tree, including ignored files, for secrets"
+run = "gitleaks dir --redact=75 --no-banner --no-color --max-target-megabytes 5 ."

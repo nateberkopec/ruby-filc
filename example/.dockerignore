@@ -1,9 +1,9 @@
 **
 !Dockerfile
 !Dockerfile.app
-!ruby-4.0.7-filc.patch
+!ruby-4.0.9-filc.patch
 !dist/
-!dist/optfil-0.686-linux-*.tar.xz
+!dist/optfil-0.687-linux-*.tar.xz
 !Gemfile
 !Gemfile.lock
 !config.ru

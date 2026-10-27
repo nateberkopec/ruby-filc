@@ -1,4 +1,4 @@
-FROM ruby-filc:4.0.7
+FROM ruby-filc:4.0.9
 WORKDIR /app
 COPY Gemfile Gemfile.lock ./
 RUN bundle install
