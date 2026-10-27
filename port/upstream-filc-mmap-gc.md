@@ -1,27 +1,22 @@
-# Draft: sparse mmap reservations inflate FUGC's allocation headroom
+# Sparse mmap reservations inflate FUGC's allocation headroom
 
-Status: local proposal, not submitted to upstream.
+I'm porting Ruby 4.0.9 to Fil-C and measuring a Puma app's memory. Ruby's shape ancestor cache reserves 384 MiB; replacing it with lazy chunks cut median RSS by 59%. A FUGC-level fix would help avoid Ruby-specific allocation workarounds for sparse reservations.
 
-## Observation
+The [1.5x survivor threshold](https://github.com/pizlonator/fil-c/blob/b8ffc50327d4fe8c4fe6e4fc2b9d823ed19966d8/libpas/src/libpas/fugc.c#L1385-L1420) gives that reservation roughly 192 MiB of extra allocation headroom, despite almost all of it being nonresident. Could reserved size be separated from the footprint used to calculate **additional headroom**, while preserving mapping tracking and pressure from new allocations?
 
-With the Linux ARM64 optfil 0.687 release, keeping a 384 MiB anonymous mapping alive while touching only one byte substantially increases the RSS of an otherwise identical malloc/free workload. The workload allocates and immediately frees 200,000 1,024-byte objects, about 195.3 MiB in total. It does not retain those objects intentionally.
+On optfil 0.687 / Linux ARM64, touching one byte in a 384 MiB mapping changes an otherwise identical malloc/free workload:
 
-Three consecutive pairs, with the default concurrent collector:
+| Three runs | Automatic GC cycles | Peak RSS, KiB |
+|---|---:|---:|
+| No mapping | 8-180 | 16,236-84,760 |
+| Sparse mapping | 0-1 | 217,648-223,124 |
 
-| Reserved MiB | Automatic cycles during churn | Starting peak RSS, KiB | Final peak RSS, KiB |
-|---:|---:|---:|---:|
-| 0 | 180 | 13,896 | 16,240 |
-| 384 | 0 | 16,880 | 217,648 |
-| 0 | 8 | 13,904 | 84,760 |
-| 384 | 1 | 17,016 | 218,368 |
-| 0 | 180 | 13,908 | 16,236 |
-| 384 | 0 | 17,124 | 223,124 |
+Starting peaks were below 18 MiB. The control varies with scheduling; this is retention behavior, not proof of a permanent leak.
 
-The control has scheduling-dependent variation, but the reserved mapping consistently allows nearly the entire allocation stream to accumulate before collection. The large reservation itself does not initially consume hundreds of MiB of RSS. This is a collection-policy/retention observation, not evidence of a permanent leak.
+<details>
+<summary>Standalone reproducer: mmap-gc-pressure.c</summary>
 
-## Reproduction
-
-Save the following as `mmap-gc-pressure.c`. There are three explicit collections before the measured allocation loop, and none during that loop. Every temporary allocation is freed.
+Every temporary allocation is freed. Explicit collections occur only before the allocation loop.
 
 ```c
 #include <assert.h>
@@ -82,16 +77,6 @@ int main(int argc, char **argv)
 FUGC_VERBOSE=4 ./mmap-gc-pressure 384
 ```
 
-The upstream release archive SHA-256 is `375995867dcd3e91533efba6328a5057e51cf7db5a1ffa413ad391d0336ade6e`. This was run on Linux ARM64 through OrbStack, in an Ubuntu 24.04 container restricted to CPUs 0-3, 4 GiB RAM and no additional swap.
+</details>
 
-## Diagnosis and proposed direction
-
-[`filc_native_zsys_mmap`](https://github.com/pizlonator/fil-c/blob/b8ffc50327d4fe8c4fe6e4fc2b9d823ed19966d8/libpas/src/libpas/filc_runtime.c) first allocates the full mapping length through `allocate_aligned_impl`, with `FILC_OBJECT_FLAG_MMAP`. In [`fugc.c`](https://github.com/pizlonator/fil-c/blob/b8ffc50327d4fe8c4fe6e4fc2b9d823ed19966d8/libpas/src/libpas/fugc.c#L1385-L1420), the next threshold is `surviving_bytes * fugc_threshold_multiplier`, whose default multiplier is 1.5. A surviving 384 MiB reservation therefore adds roughly 192 MiB of allocation headroom even when almost all of it is nonresident. The verbose run reports a threshold around 604 million bytes against roughly 403 million surviving bytes.
-
-The `fugc.c` blob is identical in v0.687, my source-build checkout, and upstream commit `b8ffc50327d4fe8c4fe6e4fc2b9d823ed19966d8` (`f96818e4e0536ebb942139b8b7415610145a7df6`). The mmap allocation path is also still present at that upstream commit. I have not built or run that entire newer upstream revision.
-
-Would separating the survivor footprint used to calculate **additional allocation headroom** from the full reserved allocation size fit FUGC's design? Large sparse mappings could remain fully tracked and new mappings could still contribute to allocation pressure, without an old reservation indefinitely granting proportional headroom to unrelated malloc/free churn. Any implementation also needs to handle sparse auxiliary pointer storage, mapping resize/unmap operations, concurrent accounting, and the CPU cost of more frequent collections. Simply excluding all mmap allocations from GC accounting would not be a sufficient fix.
-
-The application motivation is Ruby's shape ancestor cache, which reserved 384 MiB up front. Replacing that cache with stable-address lazy chunks reduced our Puma application's measured median RSS by 59%, with no reduction in cache capacity. That application workaround does not solve the general reservation/accounting interaction.
-
-Local source and receipts: `probes/c/mmap-gc-pressure.c`, `ta/mmap-gc-pressure-final.log`, and `ta/mmap-gc-pressure-free-verbose.log`.
+Upstream issue: [#351](https://github.com/pizlonator/fil-c/issues/351).

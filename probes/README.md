@@ -35,8 +35,8 @@ The release-image regression runner is `example/regressions.sh`. The candidate r
 
 - `setjmp-*`: allocation pressure, parallel calls, OOM and scavenging.
 - `mremap-support.c`: supported mapping operations.
-- `mmap-gc-pressure.c`: malloc/free churn with and without a sparse 384 MiB mapping; measures the unresolved FUGC headroom problem described in [the local upstream proposal](../port/upstream-filc-mmap-gc.md).
-- `relr-dlopen.c`: builds both a tiny shared library and its loader; packing the library reproduces a missing glibc ABI dependency in Fil-C 0.687. Commands and expected failure are in [the local upstream draft](../port/upstream-filc-relr.md).
+- `mmap-gc-pressure.c`: malloc/free churn with and without a sparse 384 MiB mapping; measures the unresolved FUGC headroom problem described in [the upstream proposal](../port/upstream-filc-mmap-gc.md).
+- `relr-dlopen.c`: builds both a tiny shared library and its loader; packing the library reproduces a missing glibc ABI dependency in Fil-C 0.687. Commands and expected failure are in [the upstream report](../port/upstream-filc-relr.md).
 - `binding/`: dynamic-loader symbol binding.
 - `cache-heap/`, `vm-stack-heap/`: native heap/root inspection helpers using matching Ruby internal headers.
 - `timezone.c`: timezone integration.

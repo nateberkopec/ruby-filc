@@ -83,7 +83,7 @@ A checked order-processing Puma workload and matched GCC Ruby 4.0.9 control now 
 
 The interpreter and `libruby` now use packed ELF relative relocations, saving about 19 MiB of library RSS without removing safety checks. Native-extension flags remain unchanged because a separate Fil-C loader-metadata problem prevents applying packing generally.
 
-**The port is still far above stock Ruby's memory use.** In the latest 70,000-request run, the clean packed runtime used 296 MiB median RSS versus 33 MiB for stock. Neither these measurements nor the focused retention checks prove general leak freedom. The benchmark preserves the 105% acceptance limit and fails it; see [Puma memory measurements and reproduction](port/puma-memory.md). Local upstream drafts cover [sparse-mapping GC headroom](port/upstream-filc-mmap-gc.md) and [packed-library loading](port/upstream-filc-relr.md); neither has been posted.
+**The port is still far above stock Ruby's memory use.** In the latest 70,000-request run, the clean packed runtime used 296 MiB median RSS versus 33 MiB for stock. Neither these measurements nor the focused retention checks prove general leak freedom. The benchmark preserves the 105% acceptance limit and fails it; see [Puma memory measurements and reproduction](port/puma-memory.md). Upstream reports cover [sparse-mapping GC headroom](https://github.com/pizlonator/fil-c/issues/351) and [packed-library loading](https://github.com/pizlonator/fil-c/issues/352).
 
 ## Recovery and provenance
 

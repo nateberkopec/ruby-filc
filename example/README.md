@@ -20,7 +20,7 @@ mise run test
 
 The build uses pristine Ruby 4.0.9 plus `ruby-4.0.9-filc.patch`, not an existing Ruby executable. It preserves the previously accepted port changes through the historical `78e4bb7` checkpoint and Ruby 4.0.9's upstream fixes, plus the Fil-C shape-cache allocation improvement. The separate VM-stack-retirement and forwarding candidates are not included.
 
-The interpreter and `libruby` use ELF packed relative relocations to reduce mapped relocation metadata. The flag is deliberately scoped through Ruby's `XLDFLAGS`, not general `LDFLAGS`: some Fil-C 0.687 native extensions fail to load when packed because their link omits a required glibc ABI dependency. Extension flags remain unchanged. See the [memory measurements](../port/puma-memory.md) and [unposted upstream reproducer](../port/upstream-filc-relr.md).
+The interpreter and `libruby` use ELF packed relative relocations to reduce mapped relocation metadata. The flag is deliberately scoped through Ruby's `XLDFLAGS`, not general `LDFLAGS`: some Fil-C 0.687 native extensions fail to load when packed because their link omits a required glibc ABI dependency. Extension flags remain unchanged. See the [memory measurements](../port/puma-memory.md) and [upstream reproducer](https://github.com/pizlonator/fil-c/issues/352).
 
 | Artifact | SHA-256 |
 |---|---|
