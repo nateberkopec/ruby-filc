@@ -129,6 +129,33 @@ A diagnostic run before this candidate captured native heap graphs near 10,000, 
 
 Receipts: `ta/shape-table-*`, `ta/puma-memory-shape-table-*`, and `ta/puma-native-base-*`. The unchanged packed build's longer soak is still separate from this candidate's short comparison.
 
+## Native weak-map registry candidate
+
+`object-registry-weak-map-ruby-4.0.9.patch` contains source commit `45a59e3` on `filc-ruby-4.0.9-registry-compact`. It remains outside the default export. The following comparison applies it after the shape-table candidate, with no stack/forwarding changes or GC tuning.
+
+Previously every Ruby allocation created a separate native weak-reference object and a 24-byte registry entry, with companion pointer storage. The candidate instead records the object and its heap-size class in Fil-C's native weak map. The collector removes dead entries during its normal weak-map census. Strong retention storage is created only for `GC.disable`; explicit collections and concurrent enable/disable transitions retain their existing protocol.
+
+Native weak-map iterators hold strong snapshots. Directly yielding Ruby callbacks from one would let a suspended `ObjectSpace.each_object` enumerator pin unrelated objects. The candidate therefore converts the snapshot to temporary weak handles in a non-inlined helper before invoking callbacks, and releases the handle array through `rb_ensure`. This moves per-object weak-handle allocation to enumeration rather than every Ruby allocation. The new system probe catches the naive implementation: plain/suspended counts are 2/100 there, versus 2/2 on both the baseline and corrected candidate, and 0/0 on stock. It guards against added enumeration retention, not every existing port retention issue.
+
+Fresh sequential measurements on CPUs 4-7, with 4 GiB/no-extra-swap limits and 70,000 checked requests per run:
+
+| Metric | Stock GCC Ruby | Fil-C shape-table candidate | Fil-C plus weak-map registry |
+|---|---:|---:|---:|
+| Median RSS, KiB | 34,340 | 281,884 | 234,376 |
+| Sampled peak RSS, KiB | 38,164 | 335,416 | 294,892 |
+| Diagnostic post-GC RSS, KiB | 33,736 | 184,840 | 146,148 |
+| Elapsed seconds, including idle/diagnostic phases | 43.00 | 66.58 | 76.35 |
+
+The registry change lowers median RSS by 16.9% and peak RSS by 12.1% in this comparison, but the run takes longer. It still fails the unchanged gate at **6.825x stock median and 7.727x stock peak**. Both short-run growth screens pass: stock +2.7%, Fil-C -10.1%. No collection or scavenging calls were added during measured rounds.
+
+Validation: normal and checked builds pass all 2,044 bootstrap tests (135.61 and 169.72 seconds); the six GC-state/concurrency/fork scenarios pass; runtime integration, newly compiled native gems, Puma HTTP checks, shape enumeration and the new lifetime probe pass. The existing GC/ObjectSpace selection runs 91 tests: both baseline and candidate have the same eight failures, 14 errors and two skips, with no new failing identities, safety errors or descriptor warnings. This is not full Ruby compatibility.
+
+During development, `make` failed to rebuild `gc.o` after changes to `gc/filc/filc.c`. The default consolidated patch now includes the missing dependency, independently of either memory candidate. The earlier `registry-weak-snapshot` and `registry-isolated-snapshot` attempts still loaded the original prototype and are not corrected-candidate evidence. Corrected normal-library SHA-256: `5893407d41df75b595bc81f40375e4c451706e8113b66ea7d662934fbda6c6ec`.
+
+Receipts: `ta/registry-corrected-*`, `ta/registry-checked-*`, `ta/registry-runtime-checks.*`, `ta/registry-*-ruby-tests.*`, `ta/registry-lifetime-*`, and `ta/puma-memory-registry-*`.
+
+A separate lifetime issue remains: clearing a 100-element array leaves 32 marker objects reachable in both the baseline and registry candidate; explicitly filling it with nil before clearing leaves two. Stock retains zero in either case. The array's unused capacity still contains references visible to Fil-C. This has not been fixed by changing the object registry. Receipt: `ta/array-clear-lifetime.log`.
+
 ## Upstream GC accounting proposal
 
 `probes/c/mmap-gc-pressure.c` isolates the sparse-reservation problem without Ruby. It allocates and immediately frees about 195 MiB of small objects. With no reserved mapping, three runs peak at 16,236-84,760 KiB and complete 8-180 automatic cycles. Keeping a 384 MiB mapping alive while touching one byte produces 217,648-223,124 KiB peaks and only 0-1 automatic cycles. The starting peaks remain below 18 MiB.

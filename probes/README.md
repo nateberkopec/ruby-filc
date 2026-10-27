@@ -24,6 +24,7 @@ docker run --rm --memory=8g --memory-swap=8g \
 | `allocation-pressure.rb`, `class-retention*.rb`, `struct-retention.rb`, `weakmap-gc-phases.rb` | Allocation/lifetime measurements, not broad correctness verdicts |
 | `nio4r.rb`, `puma.rb` | Native-gem probes; first build matching native extensions as described in `port/native-gems/README.md` |
 | `puma-memory-app.rb` | Order-processing HTTP app driven and measured by `port/benchmark-puma-memory.sh`; the 5% RSS target is still unmet |
+| `object-registry-lifetime.rb` | Compares unrelated-object retention with and without a suspended ObjectSpace enumerator; catches whole-heap retention by a strong iterator snapshot |
 | `shape-cache-chunks.rb` | Shape/cache chunk boundaries, ivar lookup/copy/removal, GC and concurrent Ractor construction; `--dump-shapes` also verifies complete, consecutive IDs through ObjectSpace |
 | `fiddle.rb`, `ioctl.rb`, `timezone.rb`, `scheduler-stress.rb` | Focused runtime integration checks |
 

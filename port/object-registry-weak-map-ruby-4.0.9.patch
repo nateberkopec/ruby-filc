@@ -1,0 +1,230 @@
+diff --git a/gc/filc/filc.c b/gc/filc/filc.c
+index 586636d..638432b 100644
+--- a/gc/filc/filc.c
++++ b/gc/filc/filc.c
+@@ -35,12 +35,6 @@ struct filc_object_fields {
+     VALUE gen_fields;
+ };
+ 
+-struct filc_registry_entry {
+-    zweak *weak;
+-    VALUE retained;
+-    unsigned char heap_id;
+-};
+-
+ struct filc_gc_request {
+     zgc_cycle_number cycle;
+     struct filc_gc_request *next;
+@@ -48,10 +42,11 @@ struct filc_gc_request {
+ 
+ struct filc_registry {
+     rb_nativethread_lock_t lock;
+-    struct filc_registry_entry *items;
+-    size_t len;
+-    size_t capa;
+-    size_t iterating;
++    zweak_map *objects;
++    zweak_map_iter *retained;
++    VALUE *retained_new;
++    size_t retained_len;
++    size_t retained_capa;
+     size_t allocated[FILC_HEAP_COUNT];
+     struct filc_gc_request *requests;
+     zgc_cycle_number counted_cycle;
+@@ -80,7 +75,6 @@ typedef struct objspace rb_objspace_t;
+ static void gc_run_finalizers(void *data);
+ static bool rb_data_free(void *objspace, VALUE obj);
+ static void registry_set_disabled(struct filc_registry *registry, bool disabled);
+-static void registry_trim(struct filc_registry *registry);
+ static void registry_collect(struct filc_registry *registry);
+ 
+ void *
+@@ -96,6 +90,7 @@ rb_gc_impl_objspace_init(void *objspace_ptr)
+ 
+     objspace->finalizer_queue = zgc_finq_new();
+     objspace->object_queue = zgc_finq_new();
++    objspace->registry.objects = zweak_map_new();
+     rb_native_mutex_initialize(&objspace->registry.lock);
+     objspace->finalizer_postponed_job = rb_postponed_job_preregister(0, gc_run_finalizers, objspace);
+     if (objspace->finalizer_postponed_job == POSTPONED_JOB_HANDLE_INVALID) {
+@@ -177,7 +172,6 @@ void
+ rb_gc_impl_start(void *objspace_ptr, bool full_mark, bool immediate_mark, bool immediate_sweep, bool compact)
+ {
+     struct objspace *objspace = objspace_ptr;
+-    if (full_mark && immediate_sweep) registry_trim(&objspace->registry);
+     registry_collect(&objspace->registry);
+     maybe_schedule_finalizers(objspace);
+     if (full_mark && immediate_sweep) zscavenge_synchronously();
+@@ -244,56 +238,24 @@ finalizable_type_p(uintptr_t flags)
+     return (flags & RUBY_T_MASK) == T_DATA || (flags & RUBY_T_MASK) == T_FILE;
+ }
+ 
+-static void
+-registry_compact(struct filc_registry *registry)
+-{
+-    size_t live = 0;
+-    for (size_t i = 0; i < registry->len; i++) {
+-        if (zweak_get(registry->items[i].weak)) registry->items[live++] = registry->items[i];
+-    }
+-    if (live != registry->len) memset(registry->items + live, 0, (registry->len - live) * sizeof(*registry->items));
+-    registry->len = live;
+-}
+-
+-static void
+-registry_trim(struct filc_registry *registry)
+-{
+-    rb_native_mutex_lock(&registry->lock);
+-    if (!registry->iterating) {
+-        registry_compact(registry);
+-        if (registry->capa > 1024 && registry->len < registry->capa / 4) {
+-            size_t capa = registry->len > 512 ? registry->len * 2 : 1024;
+-            struct filc_registry_entry *items = realloc(registry->items, capa * sizeof(*items));
+-            if (!items) {
+-                rb_native_mutex_unlock(&registry->lock);
+-                rb_memerror();
+-            }
+-            registry->items = items;
+-            registry->capa = capa;
+-        }
+-    }
+-    rb_native_mutex_unlock(&registry->lock);
+-}
+-
+ static void
+ registry_add(struct filc_registry *registry, VALUE obj, size_t heap_id)
+ {
+-    zweak *weak = zweak_new((void *)obj);
+     rb_native_mutex_lock(&registry->lock);
+-    if (registry->len == registry->capa) {
+-        if (!registry->iterating) registry_compact(registry);
+-        if (registry->len >= registry->capa / 2) {
+-            size_t capa = registry->capa ? registry->capa * 2 : 1024;
+-            struct filc_registry_entry *items = realloc(registry->items, capa * sizeof(*items));
++    if (registry->disabled) {
++        if (registry->retained_len == registry->retained_capa) {
++            size_t capa = registry->retained_capa ? registry->retained_capa * 2 : 1024;
++            VALUE *items = realloc(registry->retained_new, capa * sizeof(*items));
+             if (!items) {
+                 rb_native_mutex_unlock(&registry->lock);
+                 rb_memerror();
+             }
+-            registry->capa = capa;
+-            registry->items = items;
++            registry->retained_capa = capa;
++            registry->retained_new = items;
+         }
++        registry->retained_new[registry->retained_len++] = obj;
+     }
+-    registry->items[registry->len++] = (struct filc_registry_entry){weak, registry->disabled ? obj : 0, heap_id};
++    zweak_map_set(registry->objects, (void *)obj, (void *)(heap_id + 1));
+     registry->allocated[heap_id]++;
+     rb_native_mutex_unlock(&registry->lock);
+ }
+@@ -305,8 +267,10 @@ registry_stats(struct filc_registry *registry, size_t *allocated, size_t *live)
+     memcpy(allocated, registry->allocated, sizeof(registry->allocated));
+     if (live) {
+         memset(live, 0, sizeof(registry->allocated));
+-        for (size_t i = 0; i < registry->len; i++) {
+-            if (zweak_get(registry->items[i].weak)) live[registry->items[i].heap_id]++;
++        zweak_map_iter *iter = zweak_map_get_iter(registry->objects);
++        while (zweak_map_iter_next(iter)) {
++            size_t heap_id = (size_t)zweak_map_iter_value(iter) - 1;
++            live[heap_id]++;
+         }
+     }
+     rb_native_mutex_unlock(&registry->lock);
+@@ -334,9 +298,11 @@ registry_update_gc_count(struct filc_registry *registry)
+ static void
+ registry_set_retained(struct filc_registry *registry, bool retained)
+ {
+-    for (size_t i = 0; i < registry->len; i++) {
+-        registry->items[i].retained = retained ? (VALUE)zweak_get(registry->items[i].weak) : 0;
+-    }
++    registry->retained = retained ? zweak_map_get_iter(registry->objects) : NULL;
++    free(registry->retained_new);
++    registry->retained_new = NULL;
++    registry->retained_len = 0;
++    registry->retained_capa = 0;
+ }
+ 
+ static void
+@@ -374,28 +340,41 @@ registry_collect(struct filc_registry *registry)
+     rb_native_mutex_unlock(&registry->lock);
+ }
+ 
+-static VALUE
+-registry_at(struct filc_registry *registry, size_t i)
+-{
+-    rb_native_mutex_lock(&registry->lock);
+-    VALUE obj = (VALUE)zweak_get(registry->items[i].weak);
+-    rb_native_mutex_unlock(&registry->lock);
+-    return obj;
+-}
+-
+ struct registry_each_args {
+     struct filc_registry *registry;
+     bool (*func)(VALUE obj, void *data);
+     void *data;
+-    size_t limit;
++    zweak **items;
++    size_t len;
+ };
+ 
++NOINLINE(static void registry_weak_snapshot(struct registry_each_args *args));
++
++static void
++registry_weak_snapshot(struct registry_each_args *args)
++{
++    rb_native_mutex_lock(&args->registry->lock);
++    zweak_map_iter *iter = zweak_map_get_iter(args->registry->objects);
++    rb_native_mutex_unlock(&args->registry->lock);
++    size_t capa = 0;
++    while (zweak_map_iter_next(iter)) {
++        if (args->len == capa) {
++            capa = capa ? capa * 2 : 1024;
++            zweak **items = realloc(args->items, capa * sizeof(*items));
++            if (!items) rb_memerror();
++            args->items = items;
++        }
++        args->items[args->len++] = zweak_new(zweak_map_iter_key(iter));
++    }
++}
++
+ static VALUE
+ registry_each_body(VALUE ptr)
+ {
+     struct registry_each_args *args = (struct registry_each_args *)ptr;
+-    for (size_t i = 0; i < args->limit; i++) {
+-        VALUE obj = registry_at(args->registry, i);
++    registry_weak_snapshot(args);
++    for (size_t i = 0; i < args->len; i++) {
++        VALUE obj = (VALUE)zweak_get(args->items[i]);
+         if (obj && args->func(obj, args->data)) break;
+     }
+     return Qnil;
+@@ -404,21 +383,16 @@ registry_each_body(VALUE ptr)
+ static VALUE
+ registry_each_ensure(VALUE ptr)
+ {
+-    struct filc_registry *registry = ((struct registry_each_args *)ptr)->registry;
+-    rb_native_mutex_lock(&registry->lock);
+-    registry->iterating--;
+-    rb_native_mutex_unlock(&registry->lock);
++    struct registry_each_args *args = (struct registry_each_args *)ptr;
++    free(args->items);
++    args->items = NULL;
+     return Qnil;
+ }
+ 
+ static void
+ registry_each(struct filc_registry *registry, bool (*func)(VALUE obj, void *data), void *data)
+ {
+-    struct registry_each_args args = { registry, func, data, 0 };
+-    rb_native_mutex_lock(&registry->lock);
+-    args.limit = registry->len;
+-    registry->iterating++;
+-    rb_native_mutex_unlock(&registry->lock);
++    struct registry_each_args args = { registry, func, data, NULL, 0 };
+     rb_ensure(registry_each_body, (VALUE)&args, registry_each_ensure, (VALUE)&args);
+ }
+ 

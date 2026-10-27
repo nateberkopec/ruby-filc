@@ -13,7 +13,7 @@ run = "bash port/build-release.sh"
 [tasks.test]
 description = "Run runtime, native-extension and cache/concurrency system checks"
 depends = ["build", "test:version-lints"]
-sources = ["example/Dockerfile", "example/.dockerignore", "example/*.patch", "example/*.sh", "example/regressions/*.rb", "ruby-4.0.9-filc.patch", "port/build-release.sh", "port/test-release.sh", "probes/ruby/shape-cache-chunks.rb", "mise.toml"]
+sources = ["example/Dockerfile", "example/.dockerignore", "example/*.patch", "example/*.sh", "example/regressions/*.rb", "ruby-4.0.9-filc.patch", "port/build-release.sh", "port/test-release.sh", "probes/ruby/shape-cache-chunks.rb", "probes/ruby/object-registry-lifetime.rb", "mise.toml"]
 run = "bash port/test-release.sh"
 
 [tasks."test:version-lints"]
