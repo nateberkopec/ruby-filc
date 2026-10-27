@@ -89,6 +89,8 @@ An isolated [`-g0` compilation experiment](port/filc-debug-info.md) reduces Fil-
 
 A further [checked-arithmetic and CPU-initialization candidate](port/checked-arithmetic-cpu-init.md) removes avoidable size-check temporaries and initializes Fil-C's CPU-feature detector before native extensions choose optimized paths. It passes bootstrap and selected JSON/core tests, and its repeated matched runs improve throughput about 3.2% over the `-g0` control. It still delivers only about 23.4% of stock throughput, so it remains experimental.
 
+The [compact object-registry vector](port/object-registry-vector.md) removes unused normal-GC record fields while preserving disabled-GC roots and weak enumeration. Checked-build and retention/concurrency probes pass, but broader GC compatibility failures remain. Repeated Puma runs reduce median RSS about 3.5% versus the prior combined control, without a consistent peak-memory or throughput improvement; every stock-relative gate still fails.
+
 ## Recovery and provenance
 
 The original temporary workspace disappeared. Compiler-volume and Docker-image copies survived; retained successful file operations recovered 125 text assets. The recovered Ruby 4.0.7 consolidated patch and revised VM-stack patch matched their recorded hashes exactly. Those original exports remain in Git history; the current Ruby 4.0.9 exports have new identities. Original local Git commit history and most raw test logs were not recovered. Old commit IDs and log paths in the investigation notes are historical identifiers, not commits in this repository or promises that those logs are present.

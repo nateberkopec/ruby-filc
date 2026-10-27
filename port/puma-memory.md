@@ -276,6 +276,12 @@ An additional amd64 candidate keeps allocation-size overflow checks scalar and i
 
 With rebuilt `-g0` standard extensions, two candidate runs deliver 814.3/814.5 requests/s versus 792.4/786.3 for the prior `-g0` controls. Candidate median RSS is 176,348/176,224 KiB, versus stock's 36,084/36,340 KiB and 3,479.5/3,470.0 requests/s. All ratio gates still fail; both stock warmed-growth screens also fail. Neither patch is promoted. See [the profiles, checked-arithmetic tests, startup regression, full measurement table and reproduction](checked-arithmetic-cpu-init.md).
 
+## Compact weak-reference vector
+
+The [vector-registry candidate](object-registry-vector.md) reduces the 24-byte per-object registry record to one weak-reference pointer and allocates separate strong-root storage only while GC is disabled. It retains the original array/enumeration model rather than using the slower weak-map candidate. Normal and independent checked bootstrap pass, as do focused retention/concurrency probes, but matched broader GC suites still have 12 failures and 14 errors.
+
+Two matched candidate runs use 169,528/171,040 KiB median RSS versus 176,332/176,620 KiB for the prior combined control, about a 3.5% reduction. Peaks are inconsistent, and throughput is 797.2/811.2 versus 812.2/801.9 requests/s. Every stock-relative gate still fails. The candidate remains outside the default exports; neither a performance gain nor general leak freedom is established.
+
 ## Upstream GC accounting proposal
 
 `probes/c/mmap-gc-pressure.c` isolates the sparse-reservation problem without Ruby. It allocates and immediately frees about 195 MiB of small objects. With no reserved mapping, three runs peak at 16,236-84,760 KiB and complete 8-180 automatic cycles. Keeping a 384 MiB mapping alive while touching one byte produces 217,648-223,124 KiB peaks and only 0-1 automatic cycles. The starting peaks remain below 18 MiB.
