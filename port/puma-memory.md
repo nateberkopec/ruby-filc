@@ -264,6 +264,12 @@ Patch SHA-256: `4c64e270ef6a45c6a8962cf48c3546d3129f074d6ad9b3c3d81d32fcfee07506
 
 A separate [hash/Set/table retirement candidate](table-retirement.md) fixes newly reproduced retained entries and passes normal/checked focused validation, including a corrected deleting-callback regression. It does not include this string experiment. Its fresh matched Puma run remains far outside acceptance: 189,780 versus 36,316 KiB median RSS, 772.5 versus 3,484.1 requests/s, and 5.960 versus 1.201 ms p50 latency. The table fix produces no material before/after performance difference in that run.
 
+## Compiler debug-information footprint
+
+A fresh amd64 build with `debugflags=-g0` reduces `.data.rel.ro` in `libruby` from 14,834,816 to 3,477,392 bytes while keeping all Fil-C instrumentation and existing optimization/hardening flags. This is not merely removing unmapped DWARF: Fil-C uses source-location information in resident diagnostic origins. Focused native negative controls still reject invalid accesses and calls, but native panic traces lose C source file/line precision. Ruby backtrace/exception tests pass.
+
+In a new four-way matched comparison, baseline Fil-C uses 190,614 KiB median RSS and delivers 782.7 requests/s; the `-g0` candidate uses 177,924 KiB and delivers 791.5 requests/s. Stock uses 38,024 KiB and delivers 3,508.9 requests/s. The candidate still fails every ratio gate. The shape-table-only candidate uses 167,752 KiB but delivers 757.6 requests/s, with higher median latency and substantially more collections. Neither configuration is promoted, and no combined result is inferred. See [full configuration, validation, diagnostics and measurements](filc-debug-info.md).
+
 ## Upstream GC accounting proposal
 
 `probes/c/mmap-gc-pressure.c` isolates the sparse-reservation problem without Ruby. It allocates and immediately frees about 195 MiB of small objects. With no reserved mapping, three runs peak at 16,236-84,760 KiB and complete 8-180 automatic cycles. Keeping a 384 MiB mapping alive while touching one byte produces 217,648-223,124 KiB peaks and only 0-1 automatic cycles. The starting peaks remain below 18 MiB.

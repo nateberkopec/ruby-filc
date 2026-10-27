@@ -31,6 +31,7 @@ docker run --rm --memory=8g --memory-swap=8g \
 | `st-table-lifetime.rb`, `table-compaction-lifetime.rb` | Direct C-table lifetime and vacated compaction slots; build `c/st-table-lifetime/` with the matching Ruby and add its build directory with `-I` |
 | `table-delete-during-iteration.rb`, `st-table-iteration-delete.rb` | Current-entry deletion, clear and nested deletion with colliding Hash/Set keys; the native-table probe checks deletion/reinsertion before returning `ST_DELETE`, requires the helper extension and caught a candidate-only regression |
 | `string-hash-compare.rb` | Direct string hash comparator versus `String#eql?` across lengths, mutations and encodings; build `c/string-hash-compare/` and add its directory with `-I`; the short-string candidate is experimental, not promoted |
+| `filc-heap-snapshot.rb` | Native heap graph, process status and mappings after explicit collection/scavenging; load libraries with `-r`, build `c/cache-heap/`, and pass an output prefix; diagnostic only, never an acceptance workload |
 | `object-registry-lifetime.rb` | Compares unrelated-object retention with and without a suspended ObjectSpace enumerator; catches whole-heap retention by a strong iterator snapshot |
 | `shape-cache-chunks.rb` | Shape/cache chunk boundaries, ivar lookup/copy/removal, GC and concurrent Ractor construction; `--dump-shapes` also verifies complete, consecutive IDs through ObjectSpace |
 | `fiddle.rb`, `ioctl.rb`, `timezone.rb`, `scheduler-stress.rb` | Focused runtime integration checks |
@@ -49,6 +50,7 @@ The release-image regression runner is `example/regressions.sh`. The candidate r
 - `cache-heap/`, `vm-stack-heap/`: native heap/root inspection helpers for matching Ruby/Fil-C builds. `FilcCacheHeap.dump(fd)` writes the native heap graph; `FilcCacheHeap.address(object)` reports an object's address; `FilcCacheHeap.scavenge` synchronously releases reclaimable allocator memory. For diagnostic reclamation snapshots, collect first and then scavenge. These intrusive operations are not part of the normal Puma memory acceptance workload.
 - `string-hash-compare/`: Ruby extension exposing the real `rb_str_hash_cmp` result for the corresponding Ruby probe. Build with the selected Ruby's `extconf.rb` and `make` in a separate ignored build directory.
 - `st-table-lifetime/`: Ruby extension wrapping direct `st_table` APIs without Hash's automatic post-deletion compaction. Its stock mark callback traces only live entries, allowing matched stock/Fil-C object-lifetime tests. See [build commands and results](../port/table-retirement.md).
+- `checked-access.c`: valid memory/indirect-call control plus intentional bounds, freed-memory, read-only and argument-count violations. `port/check-filc-debug-flags.sh` compares rejection with `-ggdb3` and `-g0`; see [the debug-information experiment](../port/filc-debug-info.md).
 - `timezone.c`: timezone integration.
 
 Compile with the same Fil-C compiler/runtime as the Ruby being investigated. GCC controls must use ordinary system libraries instead. Do not load a helper built against another Fil-C ABI into Ruby.
