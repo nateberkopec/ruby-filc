@@ -1857,6 +1857,18 @@ index 4daee2b..03689ac 100644
      VALUE v0;
      VALUE v1;
      VALUE v2;
+diff --git a/depend b/depend
+index 092ead0..d08cc4b 100644
+--- a/depend
++++ b/depend
+@@ -5779,6 +5779,7 @@ gc.$(OBJEXT): $(hdrdir)/ruby.h
+ gc.$(OBJEXT): $(hdrdir)/ruby/ruby.h
+ gc.$(OBJEXT): $(hdrdir)/ruby/version.h
+ gc.$(OBJEXT): $(top_srcdir)/gc/default/default.c
++gc.$(OBJEXT): $(top_srcdir)/gc/filc/filc.c
+ gc.$(OBJEXT): $(top_srcdir)/gc/gc.h
+ gc.$(OBJEXT): $(top_srcdir)/gc/gc_impl.h
+ gc.$(OBJEXT): $(top_srcdir)/internal/array.h
 diff --git a/dir.c b/dir.c
 index 25ed59c..d8882f4 100644
 --- a/dir.c

@@ -12,6 +12,7 @@ coroutine/pthread/Context.h
 coroutine/ucontext/Context.c
 coroutine/ucontext/Context.h
 debug.c
+depend
 dir.c
 dln.c
 enc/trans/gb18030.trans
