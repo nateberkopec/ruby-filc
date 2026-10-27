@@ -60,7 +60,7 @@ The older scripts under `port/` document the investigation and often assume a Li
 
 ## Current status
 
-The Docker example targets Ruby 4.0.9 with Fil-C 0.687. The 143-file port preserves upstream class-variable-cache and extension-unloading fixes. The consolidated patch includes the Fil-C shape-cache allocation improvement, but still excludes the separate VM-stack and forwarding candidates. Complete Ruby compatibility and the requested memory target remain unmet.
+The Docker example targets Ruby 4.0.9 with Fil-C 0.687. The 143-file port preserves upstream class-variable-cache and extension-unloading fixes. The consolidated patch includes the Fil-C shape-cache allocation improvement, but still excludes the separate VM-stack and forwarding candidates. Complete Ruby compatibility and the requested memory/performance targets remain unmet.
 
 The older recovered development installation uses Ruby 4.0.7, Fil-C source revision `9d1ed206e0ccfc1ec114471386befeba643a5f86` and the VM-stack candidate. The identical printed Fil-C version does not establish ABI compatibility between these toolchains.
 
@@ -77,13 +77,13 @@ Fresh recovery checks reproduce the exact port and candidate hashes, reconstruct
 
 Remaining gaps include memory pressure/OOM, GC APIs and events, signal/crash reporting, private file-backed buffer growth, OpenSSL secure allocation and export auditing, and broader native-gem/application coverage. Rails, clustered/TLS Puma, long-running workloads, and amd64 are not yet validated. Continuations, moving compaction, M:N scheduling, and JIT support are unfinished.
 
-## Puma memory target
+## Puma memory and performance targets
 
 A checked order-processing Puma workload and matched GCC Ruby 4.0.9 control now measure the Ruby process's RSS, PSS and USS independently of the load client. The Fil-C shape-ancestor cache allocates chunks on demand instead of reserving 384 MiB up front, which inflated the native collector's live-memory accounting. In the controlled development-build comparison this reduced median RSS by 59% and peak RSS by 60%.
 
 The interpreter and `libruby` now use packed ELF relative relocations, saving about 19 MiB of library RSS without removing safety checks. Native-extension flags remain unchanged because a separate Fil-C loader-metadata problem prevents applying packing generally.
 
-**The port is still far above stock Ruby's memory use.** In the latest 70,000-request run, the clean packed runtime used 296 MiB median RSS versus 33 MiB for stock. Neither these measurements nor the focused retention checks prove general leak freedom. The benchmark preserves the 105% acceptance limit and fails it; see [Puma memory measurements and reproduction](port/puma-memory.md). Upstream reports cover [sparse-mapping GC headroom](https://github.com/pizlonator/fil-c/issues/351) and [packed-library loading](https://github.com/pizlonator/fil-c/issues/352).
+**The port is still far above stock Ruby's memory use.** In the latest CPU-isolated 70,000-request run, the default packed runtime used 268 MiB median RSS versus 32 MiB for stock, delivered 23.3% of stock throughput, and had 5.18x stock median HTTP latency. Neither these measurements nor the focused retention checks prove general leak freedom. Acceptance now requires RSS and p50/p95/p99 HTTP latency no greater than 105% of stock, throughput at least 95% of stock, and separate reliability/leak-freedom evidence. The benchmark enforces all numeric gates with CPU-isolated clients and rejects older receipts without performance measurements; see [Puma measurements and reproduction](port/puma-memory.md). Upstream reports cover [sparse-mapping GC headroom](https://github.com/pizlonator/fil-c/issues/351) and [packed-library loading](https://github.com/pizlonator/fil-c/issues/352).
 
 ## Recovery and provenance
 

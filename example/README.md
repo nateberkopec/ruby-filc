@@ -58,7 +58,7 @@ docker build -f Dockerfile.app -t ruby-filc-app:4.0.9 .
 docker run --rm -p 127.0.0.1:9292:9292 ruby-filc-app:4.0.9
 ```
 
-The response at `http://localhost:9292/` reports the running Ruby version and compiler. The nio4r patch and gem preparation are documented in [port/native-gems/README.md](../port/native-gems/README.md). Fresh Puma 8.0.2/nio4r 2.7.5 builds now run the checked HTTP memory workload on Ruby 4.0.9, but the 5% memory target is not met; see [the memory comparison](../port/puma-memory.md). The nio4r patch is not automatically applied by ordinary `bundle install`.
+The response at `http://localhost:9292/` reports the running Ruby version and compiler. The nio4r patch and gem preparation are documented in [port/native-gems/README.md](../port/native-gems/README.md). Fresh Puma 8.0.2/nio4r 2.7.5 builds now run the checked HTTP memory workload on Ruby 4.0.9, but the 5% memory and throughput/latency targets are not met; see [the acceptance comparison](../port/puma-memory.md). The nio4r patch is not automatically applied by ordinary `bundle install`.
 
 ## Checks and limitations
 

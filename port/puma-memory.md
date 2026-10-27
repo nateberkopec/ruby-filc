@@ -1,6 +1,8 @@
-# Puma memory acceptance
+# Puma memory and performance acceptance
 
-The requested target is **not met**: Ruby 4.0.9 / Fil-C 0.687 must run the same Puma application at no more than 105% of stock Ruby's memory use, without sustained memory growth. The benchmark deliberately exits nonzero when this target fails. Passing HTTP checks alone is not memory acceptance.
+The requested target is **not met**: reliable, leak-free Ruby 4.0.9 / Fil-C Puma with at most a 5% penalty to memory and throughput/latency versus stock Ruby. This supersedes the earlier memory-only target; historical memory measurements cannot establish performance acceptance.
+
+For the same application, workload and resources, every gate must pass: median and sampled-peak RSS at most 105% of stock; checked load throughput at least 95% of stock; and p50, p95 and p99 HTTP latency at most 105% of stock. The warmed-memory growth screens, successful responses and clean shutdown remain required. A memory saving does not compensate for a performance regression. Reliability and leak freedom require separate lifetime and sustained-workload evidence beyond these finite numeric screens.
 
 ## Workload and measurement
 
@@ -8,11 +10,15 @@ The requested target is **not met**: Ruby 4.0.9 / Fil-C 0.687 must run the same 
 
 `measure-puma-memory.py` runs the HTTP client outside the measured Ruby process. It samples that process's Linux `smaps_rollup` every 100 ms, recording RSS, PSS, USS and swap. The primary acceptance metrics are median and peak RSS during the measured load/idle rounds. RSS includes native code, allocator metadata and thread stacks, not just Ruby heap objects. Client memory and file cache outside the Ruby process are not included.
 
+The load generator uses one Python worker process per client, rather than threads sharing Python's GIL. Server and client CPU sets must be disjoint for acceptance. Throughput is the total checked measured request count divided by summed load-batch time; it excludes warmup, idle periods and diagnostic GC, but includes client request preparation, response validation and batch dispatch. HTTP latency runs from sending a prepared request through reading its full response, before JSON validation; first-request connection setup is included. Percentiles use nearest-rank selection over every measured request, not an average of per-round percentiles. Raw nanosecond latencies and batch CPU timings are retained in `.latencies.jsonl`.
+
+This is a closed-loop, fixed-concurrency benchmark, not an open-loop production latency claim. The comparison rejects runs that consume more than 80% of assigned client CPU capacity in any round; this screens obvious load-generator saturation but does not prove the absence of every client-side bottleneck. Increase batch sizes for sustained-load measurements, and repeat matched runs before accepting results near a 5% boundary.
+
 The default warmup is five batches of 1,000 requests. Ten measured batches follow, with two seconds idle between batches. No application-requested collection occurs during those rounds. One full GC after measurement is diagnostic only and is excluded from the acceptance metrics. Increasing `--rounds` and `--requests` extends the soak without changing the application.
 
 The comparison also screens for growth: the median idle RSS in the last three rounds minus the median in the first three must not exceed 5% of the measured median. This is conservative: allocator warmup can fail it even on stock Ruby. A failure is not by itself proof of a leak, and a pass cannot prove leak freedom beyond the tested workload and duration.
 
-Results include interpreter/shared-library hashes, CPU affinity, relevant GC environment settings, server versions, raw samples, server output and final mappings. Both server shutdown and every HTTP response must succeed. Missing samples, sampler errors and workload failures are not converted into successful measurements.
+Results include interpreter/shared-library and driver/workload hashes, server/client CPU affinity, cgroup memory/swap/CPU limits, Python and server versions, relevant GC environment settings, raw samples, server output and final mappings. The comparator rejects mismatched controls and older result files without current performance evidence. Both server shutdown and every HTTP response must succeed. Missing samples, sampler errors and workload failures are not converted into successful measurements.
 
 ## Run in a prepared Linux container
 
@@ -29,10 +35,30 @@ env -u GEM_HOME -u GEM_PATH -u BUNDLE_APP_CONFIG /opt/ruby-stock/bin/gem install
 gem install --local --no-document \
   /work/port/native-gems/nio4r-2.7.5-filc.gem /work/native-gems/cache/puma-8.0.2.gem
 bash /work/port/benchmark-puma-memory.sh /opt/ruby-stock/bin/ruby /usr/local/bin/ruby \
-  /work/ta/puma-memory-comparison --rounds 30 --requests 2000 --idle 1
+  /work/ta/puma-memory-comparison --rounds 30 --requests 2000 --idle 1 \
+  --server-cpus 0-3 --client-cpus 4-7
 ```
 
-Python 3 is required. Run the container with a fixed CPU set and memory/swap limits. These measurements used Linux ARM64, CPUs 0-3, 4 GiB RAM and no additional swap. The driver clears Fil-C gem and library overrides for stock Ruby, preserves the Fil-C environment for the other run, and records separate measurement/comparison exit statuses. The ignored gem/archive files above are local build inputs, not files provided by a fresh clone; the native-gem notes explain their preparation.
+Python 3 and Linux cgroup v2 are required. Run the container with a fixed CPU set and memory/swap limits. For the command above, make CPUs 0-7 available, with 4 GiB RAM and no additional swap; Ruby uses CPUs 0-3 and the external clients use CPUs 4-7. Historical memory-only measurements below used shared client/server CPU sets and the previous threaded load generator; do not compare their performance against the new process-based driver. The driver clears Fil-C gem and library overrides for stock Ruby, preserves the Fil-C environment for the other run, and records separate measurement/comparison exit statuses. The ignored gem/archive files above are local build inputs, not files provided by a fresh clone; the native-gem notes explain their preparation.
+
+## First CPU-isolated performance comparison
+
+Each runtime checks 70,000 responses: 10,000 warmup and 60,000 measured, with 30 measured batches and one-second idle intervals. The server has CPUs 0-3, clients have CPUs 4-7, and all runs use 4 GiB with no additional swap. No application GC is requested during load. These runs use the current process-based driver and must not be mixed with the earlier threaded-client receipts.
+
+| Metric | Stock GCC Ruby | Default Fil-C (cache + RELR) | Plus shape-table chunks | Plus weak-map registry |
+|---|---:|---:|---:|---:|
+| Median RSS, KiB | 32,528 | 274,484 | 276,388 | 250,252 |
+| Sampled peak RSS, KiB | 34,144 | 357,884 | 334,340 | 307,548 |
+| Load throughput, requests/s | 9,155.0 | 2,136.8 | 2,123.0 | 1,691.9 |
+| HTTP p50, ms | 0.399 | 2.068 | 2.089 | 2.376 |
+| HTTP p95, ms | 0.902 | 4.323 | 4.292 | 6.867 |
+| HTTP p99, ms | 2.338 | 6.921 | 6.854 | 9.649 |
+
+Every Fil-C configuration fails every memory and performance ratio gate. Stock also fails the warmed-memory growth screen (+10.1%); Fil-C's screens pass. Client CPU use remains below 26% of its assigned capacity in every measured round. Stock consumes 6.37 server CPU-seconds over 6.55 load seconds, consistent with saturating its interpreter core rather than the client CPU allotment.
+
+The weak-map candidate reduces median RSS by 9.5% relative to the shape-table-only run, but loses 20.3% of its throughput and worsens p95 latency by 60.0%. It is **not eligible for promotion** under the expanded target in its current form. Shape-table chunking has similar throughput to the default in this run, but its median RSS saving is not reproduced here; shorter-run collection timing is variable. None of these single comparisons establishes a repeatable 5% boundary pass or sustained-load reliability.
+
+Raw timing/count/percentile/throughput consistency was checked against the saved per-request records. Receipts: `ta/puma-performance-baseline/`, `ta/puma-performance-shape-table.*`, `ta/puma-performance-registry.*`, and their comparison logs.
 
 ## Investigation
 

@@ -28,7 +28,7 @@ For the normal Docker build, start with [example/README.md](../example/README.md
 | `build-current-port-toolchain.sh`, `build-current-toolchain-dependencies.sh`, `finish-current-toolchain-ruby.sh` | Historical source-built compiler/dependency/Ruby workflow |
 | `profile-process-memory.py`, `summarize-process-memory.py` | Process/cgroup measurements and summaries |
 | `build-stock-runtime.sh` | Verified, unmodified shared Ruby with GCC for the Puma control |
-| `benchmark-puma-memory.sh`, `measure-puma-memory.py`, `compare-puma-memory.py` | Checked Puma workload, separate-process memory sampling and the unchanged 105% RSS gate |
+| `benchmark-puma-memory.sh`, `measure-puma-memory.py`, `compare-puma-memory.py` | Checked Puma workload, CPU-isolated process clients, RSS/latency gates at 105% and throughput at 95% of stock |
 
 Most Linux runners expect this repository mounted at `/work`, an appropriate compiler under `/compiler`, and build-path records in `/work/ta`. Do not point a runner at a different compiler or installation merely because the printed version matches. The old stopped containers still reference the lost temporary workspace; the recovered development container is separate.
 
@@ -37,7 +37,7 @@ Most Linux runners expect this repository mounted at `/work`, an appropriate com
 ## Notes and artifacts
 
 - [ruby-4.0.9-upgrade.md](ruby-4.0.9-upgrade.md): source/toolchain identities, fresh checks and remaining failures.
-- [puma-memory.md](puma-memory.md): memory target, reproducible workload, cache/relocation improvements and remaining footprint gap.
+- [puma-memory.md](puma-memory.md): memory/performance targets, reproducible workload, candidate trade-offs and remaining gaps.
 - [upstream-filc-mmap-gc.md](upstream-filc-mmap-gc.md): FUGC reservation-accounting proposal and malloc/free reproducer, posted as [#351](https://github.com/pizlonator/fil-c/issues/351).
 - [upstream-filc-relr.md](upstream-filc-relr.md): packed-relocation loader bug report and toolchain proposal, posted as [#352](https://github.com/pizlonator/fil-c/issues/352).
 
