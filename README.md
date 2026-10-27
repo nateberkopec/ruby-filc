@@ -75,7 +75,7 @@ The VM-stack candidate passed 2,044 bootstrap tests and 50 standalone regression
 
 Fresh recovery checks reproduce the exact port and candidate hashes, reconstruct an identical complete Ruby source tree, and pass all nine retirement scenarios on the recovered normal and checked binaries. A combined forwarding/tail-call probe still traps on both baseline and candidate Fil-C; the host stock Ruby 4.0.5 control also fails, with an argument error. A fresh, unmodified stock Linux Ruby 4.0.7 build also segfaults on the minimal tail-call reproducer, while its ordinary-call control returns 42. Fresh stock 4.0.9 and Fil-C 0.687 controls reproduce the same failure, with exits 139 and 133 respectively; their ordinary-call controls both return 42. A fix remains pending. These results do not establish full compatibility.
 
-Remaining gaps include memory pressure/OOM, GC APIs and events, signal/crash reporting, private file-backed buffer growth, OpenSSL secure allocation and export auditing, and broader native-gem/application coverage. Rails, clustered/TLS Puma, long-running workloads, and amd64 are not yet validated. Continuations, moving compaction, M:N scheduling, and JIT support are unfinished.
+Remaining gaps include memory pressure/OOM, GC APIs and events, signal/crash reporting, private file-backed buffer growth, OpenSSL secure allocation and export auditing, and broader native-gem/application coverage. Rails, clustered Puma, long-running workloads and full amd64 acceptance remain unvalidated; focused amd64 HTTP/TLS probes and selected-suite results are recorded below. Continuations, moving compaction, M:N scheduling, and JIT support are unfinished.
 
 ## Puma memory and performance targets
 
@@ -90,6 +90,8 @@ An isolated [`-g0` compilation experiment](port/filc-debug-info.md) reduces Fil-
 A further [checked-arithmetic and CPU-initialization candidate](port/checked-arithmetic-cpu-init.md) removes avoidable size-check temporaries and initializes Fil-C's CPU-feature detector before native extensions choose optimized paths. It passes bootstrap and selected JSON/core tests, and its repeated matched runs improve throughput about 3.2% over the `-g0` control. It still delivers only about 23.4% of stock throughput, so it remains experimental.
 
 The [compact object-registry vector](port/object-registry-vector.md) removes unused normal-GC record fields while preserving disabled-GC roots and weak enumeration. Checked-build and retention/concurrency probes pass, but broader GC compatibility failures remain. Repeated Puma runs reduce median RSS about 3.5% versus the prior combined control, without a consistent peak-memory or throughput improvement; every stock-relative gate still fails.
+
+A [combined amd64 candidate with packed OpenSSL](port/puma-combined-candidate.md) now includes the tested reclamation, registry, shape, string and arithmetic/CPU changes. It passes bootstrap, 2,389 selected core/OpenSSL tests and focused HTTP/TLS/lifetime checks. Repeated matched runs reduce median/peak RSS by 19.3%/18.5% versus the arithmetic/CPU control, but still use about 3.35x stock median RSS and deliver only 24-25% of stock throughput. Every stock-relative numeric gate still fails, and stock growth remains above the stability limit even with longer matched warmup. The full native OpenSSL suite also retains six failing recipes. No candidate is promoted.
 
 ## Recovery and provenance
 

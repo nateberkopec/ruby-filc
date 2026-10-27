@@ -88,6 +88,15 @@ def sample(pid, started, phase):
     return values
 
 
+def server_environment(clients, library_path=None, ruby_lib=None):
+    # Dependency overrides belong to Ruby, not the native Python load generator.
+    environment = dict(os.environ, PUMA_THREADS=str(clients))
+    for key, value in (('LD_LIBRARY_PATH', library_path), ('RUBYLIB', ruby_lib)):
+        if value is not None:
+            environment[key] = value
+    return environment
+
+
 def main():
     parser = argparse.ArgumentParser(description='Measure Puma memory, checked load throughput and HTTP latency.')
     parser.add_argument('--ruby', default='ruby')
@@ -99,6 +108,8 @@ def main():
     parser.add_argument('--idle', type=float, default=2)
     parser.add_argument('--server-cpus', type=cpu_set)
     parser.add_argument('--client-cpus', type=cpu_set)
+    parser.add_argument('--server-library-path', help='LD_LIBRARY_PATH for Ruby only')
+    parser.add_argument('--server-rubylib', help='RUBYLIB for Ruby only')
     args = parser.parse_args()
     if args.rounds < 6 or args.warmup_rounds < 1 or args.requests < args.clients or args.clients < 1 or args.idle <= 0:
         parser.error('require rounds >= 6, warmup-rounds >= 1, requests >= clients >= 1, idle > 0')
@@ -122,6 +133,7 @@ def main():
     ruby = shutil.which(args.ruby)
     if ruby is None:
         raise SystemExit(f'Ruby executable not found: {args.ruby}')
+    server_env = server_environment(args.clients, args.server_library_path, args.server_rubylib)
     identity = {
         'ruby_path': ruby,
         'ruby_sha256': hashlib.sha256(Path(ruby).read_bytes()).hexdigest(),
@@ -134,9 +146,9 @@ def main():
         'limits': {name: Path('/sys/fs/cgroup', name).read_text().strip()
                    for name in ('memory.max', 'memory.high', 'memory.swap.max', 'cpu.max')},
         'python': platform.python_version(),
-        'environment': {key: value for key, value in os.environ.items()
+        'environment': {key: value for key, value in server_env.items()
                         if key.startswith(('RUBY_GC_', 'RUBY_YJIT_', 'RUBY_ZJIT_', 'FUGC_'))
-                        or key in ('RUBYOPT', 'LD_LIBRARY_PATH', 'LD_PRELOAD', 'MALLOC_ARENA_MAX')},
+                        or key in ('RUBYOPT', 'RUBYLIB', 'LD_LIBRARY_PATH', 'LD_PRELOAD', 'MALLOC_ARENA_MAX')},
     }
     samples = []
     monitor_errors = []
@@ -159,7 +171,7 @@ def main():
         server = subprocess.Popen([ruby, str(root / 'probes/ruby/puma-memory-app.rb'), str(port)],
                                   stdout=output, stderr=subprocess.STDOUT,
                                   preexec_fn=lambda: os.sched_setaffinity(0, server_cpus),
-                                  env={**os.environ, 'PUMA_THREADS': str(args.clients)})
+                                  env=server_env)
         watcher = None
         try:
             deadline = time.monotonic() + 60
@@ -184,6 +196,10 @@ def main():
             mappings = Path(f'/proc/{server.pid}/maps').read_text().splitlines()
             libraries = sorted({line.split()[-1] for line in mappings if '/libruby.so' in line})
             identity['libruby_sha256'] = {path: hashlib.sha256(Path(path).read_bytes()).hexdigest() for path in libraries}
+            openssl = sorted({line.split()[-1] for line in mappings
+                              if Path(line.split()[-1]).name.startswith(('libcrypto.so', 'libssl.so'))})
+            identity['openssl_libraries_sha256'] = {path: hashlib.sha256(Path(path).read_bytes()).hexdigest()
+                                                  for path in openssl}
             watcher = threading.Thread(target=monitor, args=(server.pid,))
             watcher.start()
             with ProcessPoolExecutor(max_workers=args.clients, mp_context=multiprocessing.get_context('spawn')) as pool:

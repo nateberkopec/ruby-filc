@@ -4,11 +4,15 @@ The requested target is **not met**: reliable, leak-free Ruby 4.0.9 / Fil-C Puma
 
 For the same application, workload and resources, every gate must pass: median and sampled-peak RSS at most 105% of stock; checked load throughput at least 95% of stock; and p50, p95 and p99 HTTP latency at most 105% of stock. The warmed-memory growth screens, successful responses and clean shutdown remain required. A memory saving does not compensate for a performance regression. Reliability and leak freedom require separate lifetime and sustained-workload evidence beyond these finite numeric screens.
 
+The latest [combined amd64 candidate](puma-combined-candidate.md) includes reclamation fixes and packed OpenSSL. Its six matched runs use longer warmup, reduce memory relative to the prior Fil-C control, and still fail every stock-relative numeric gate; stock growth also remains excessive.
+
 ## Workload and measurement
 
 `probes/ruby/puma-memory-app.rb` serves a small order-processing application with Puma 8.0.2 and nio4r 2.7.5. Each POST parses JSON containing 50 line items and a note, calculates totals and a SHA-256 digest, and returns JSON. Five concurrent keep-alive clients check every response, including its unique request ID, items, total and digest. Puma runs one process with five threads; both JITs are disabled.
 
 `measure-puma-memory.py` runs the HTTP client outside the measured Ruby process. It samples that process's Linux `smaps_rollup` every 100 ms, recording RSS, PSS, USS and swap. The primary acceptance metrics are median and peak RSS during the measured load/idle rounds. RSS includes native code, allocator metadata and thread stacks, not just Ruby heap objects. Client memory and file cache outside the Ruby process are not included.
+
+For isolated dependencies, `--server-library-path` and `--server-rubylib` set only the Ruby subprocess's `LD_LIBRARY_PATH` and `RUBYLIB`; keep the Python environment free of Fil-C OpenSSL overrides. The two-runtime shell wrapper routes these options only to Fil-C, also converting inherited library/Ruby paths into Fil-C-only options. Stock and native Python clients do not receive them. Receipts record the effective server overrides and loaded OpenSSL hashes.
 
 The load generator uses one Python worker process per client, rather than threads sharing Python's GIL. Server and client CPU sets must be disjoint for acceptance. Throughput is the total checked measured request count divided by summed load-batch time; it excludes warmup, idle periods and diagnostic GC, but includes client request preparation, response validation and batch dispatch. HTTP latency runs from sending a prepared request through reading its full response, before JSON validation; first-request connection setup is included. Percentiles use nearest-rank selection over every measured request, not an average of per-round percentiles. Raw nanosecond latencies and batch CPU timings are retained in `.latencies.jsonl`.
 

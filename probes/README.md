@@ -22,7 +22,7 @@ docker run --rm --memory=8g --memory-swap=8g \
 | `buffer-*` | Mapping/resizing behavior; private-file growth remains an unresolved failure |
 | `ractor-port-pressure.rb`, `ractor-port-phases.rb`, `ractor-select.rb` | Ractor behavior and memory pressure; port pressure has exceeded the 8 GiB limit |
 | `allocation-pressure.rb`, `class-retention*.rb`, `struct-retention.rb`, `weakmap-gc-phases.rb` | Allocation/lifetime measurements, not broad correctness verdicts |
-| `nio4r.rb`, `puma.rb` | Native-gem probes; first build matching native extensions as described in `port/native-gems/README.md` |
+| `nio4r.rb`, `puma.rb` | Native-gem probes; Puma defaults to HTTP, while `--tls` verifies HTTPS and rejects untrusted certificates/wrong hostnames; first build matching native extensions as described in `port/native-gems/README.md` |
 | `puma-memory-app.rb` | Order-processing HTTP app driven and measured by `port/benchmark-puma-memory.sh`; the memory, throughput and latency targets are still unmet |
 | `puma-order-hotpaths.rb` | Checked parse/transform/digest/generate diagnostics without HTTP; records main-thread/process CPU and wall time, accepts iteration count and phase (`all` by default), and is not an acceptance benchmark |
 | `checked-size.rb` | Boundary, random and constant-factor size arithmetic against arbitrary-precision results; checks exact overflow errors using the matching `c/checked-size/` extension |
@@ -54,6 +54,7 @@ The release-image regression runner is `example/regressions.sh`. The candidate r
 - `string-hash-compare/`: Ruby extension exposing the real `rb_str_hash_cmp` result for the corresponding Ruby probe. Build with the selected Ruby's `extconf.rb` and `make` in a separate ignored build directory.
 - `st-table-lifetime/`: Ruby extension wrapping direct `st_table` APIs without Hash's automatic post-deletion compaction. Its stock mark callback traces only live entries, allowing matched stock/Fil-C object-lifetime tests. See [build commands and results](../port/table-retirement.md).
 - `checked-size/`, `cpu-features/`: native probes for [scalar checked arithmetic and CPU-feature initialization](../port/checked-arithmetic-cpu-init.md). Build with each matching Ruby's `extconf.rb`/`make`, then use `-I` to load the extension.
+- `openssl-checked-aes.c`: AES known-answer/decrypt control plus six intentional invalid calls through the existing checked assembly bridges. Run against isolated library variants with `port/check-openssl-layout-safety.sh`; see [OpenSSL and combined-candidate results](../port/puma-combined-candidate.md).
 - `checked-access.c`: valid memory/indirect-call control plus intentional bounds, freed-memory, read-only and argument-count violations. `port/check-filc-debug-flags.sh` compares rejection with `-ggdb3` and `-g0`; see [the debug-information experiment](../port/filc-debug-info.md).
 - `timezone.c`: timezone integration.
 

@@ -1,10 +1,14 @@
+import argparse
 import copy
+import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 class PumaComparisonTest(unittest.TestCase):
@@ -109,6 +113,63 @@ class PumaComparisonTest(unittest.TestCase):
                 else:
                     stock['metrics']['performance']['max_round_client_cpu_utilization'] = 0.81
                 self.assertNotEqual(self.compare(self.receipt, stock).returncode, 0)
+
+
+class PumaServerEnvironmentTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        spec = importlib.util.spec_from_file_location('puma_measurement', Path(__file__).with_name('measure-puma-memory.py'))
+        cls.driver = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.driver)
+
+    def test_server_overrides_do_not_contaminate_clients(self):
+        original = {'LD_LIBRARY_PATH': '/native', 'RUBYLIB': '/old',
+                    'PUMA_THREADS': '99', 'FUGC_CORES': '4'}
+        with patch.dict(os.environ, original, clear=True):
+            environment = self.driver.server_environment(5, '/filc', '/candidate')
+            self.assertEqual(dict(os.environ), original)
+        self.assertEqual(environment, {**original, 'PUMA_THREADS': '5',
+                                       'LD_LIBRARY_PATH': '/filc', 'RUBYLIB': '/candidate'})
+
+    def test_wrapper_routes_dependency_overrides_only_to_filc(self):
+        for extra in ([], ['--server-library-path', '/candidate', '--server-rubylib=/candidate-ruby']):
+            with self.subTest(extra=extra), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                interpreter = root / 'python3'
+                interpreter.write_text(f'#!{sys.executable}\nimport json, os, sys\n'
+                                       'print(json.dumps({"argv": sys.argv, "environment": '
+                                       '{key: os.environ[key] for key in ("LD_LIBRARY_PATH", "RUBYLIB") '
+                                       'if key in os.environ}}))\n')
+                interpreter.chmod(0o755)
+                environment = {**os.environ, 'PATH': f'{root}:{os.environ["PATH"]}',
+                               'LD_LIBRARY_PATH': '/inherited', 'RUBYLIB': '/inherited-ruby'}
+                output = root / 'results'
+                result = subprocess.run(['bash', str(Path(__file__).with_name('benchmark-puma-memory.sh')),
+                                         '/stock/ruby', '/filc/ruby', str(output), '--rounds', '30', *extra],
+                                        env=environment, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                parser = argparse.ArgumentParser()
+                parser.add_argument('--server-library-path')
+                parser.add_argument('--server-rubylib')
+                for runtime in ('stock', 'filc'):
+                    invocation = json.loads((output / f'{runtime}.log').read_text())
+                    self.assertNotIn('LD_LIBRARY_PATH', invocation['environment'])
+                    self.assertNotIn('RUBYLIB', invocation['environment'])
+                    options, rest = parser.parse_known_args(invocation['argv'][2:])
+                    self.assertIn('--rounds', rest)
+                    if runtime == 'stock':
+                        self.assertIsNone(options.server_library_path)
+                        self.assertIsNone(options.server_rubylib)
+                    else:
+                        self.assertEqual(options.server_library_path, '/candidate' if extra else '/inherited')
+                        self.assertEqual(options.server_rubylib, '/candidate-ruby' if extra else '/inherited-ruby')
+
+    def test_default_environment_is_preserved(self):
+        with patch.dict(os.environ, {'RUBYOPT': '-w', 'RUBYLIB': '/original'}, clear=True):
+            self.assertEqual(self.driver.server_environment(3),
+                             {'RUBYOPT': '-w', 'RUBYLIB': '/original', 'PUMA_THREADS': '3'})
+            self.assertEqual(self.driver.server_environment(3, '', '')['LD_LIBRARY_PATH'], '')
+            self.assertEqual(os.environ['RUBYLIB'], '/original')
 
 
 if __name__ == '__main__':

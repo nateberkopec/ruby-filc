@@ -29,6 +29,7 @@ For the normal Docker build, start with [example/README.md](../example/README.md
 | `validate-vm-stack-miniruby.sh`, `validate-vm-stack-full.sh` | Candidate checks in the dedicated development builds |
 | `build-current-port-toolchain.sh`, `build-current-toolchain-dependencies.sh`, `finish-current-toolchain-ruby.sh` | Historical source-built compiler/dependency/Ruby workflow |
 | `profile-process-memory.py`, `summarize-process-memory.py` | Process/cgroup measurements and summaries |
+| `build-openssl-layout.sh`, `check-openssl-layout-safety.sh` | Isolated matching OpenSSL rebuild, packed relocations with real loader ABI dependency, restored native tests and checked AES controls; full native suite remains nonzero |
 | `build-stock-runtime.sh` | Verified, unmodified shared Ruby with GCC for the Puma control |
 | `benchmark-puma-memory.sh`, `measure-puma-memory.py`, `compare-puma-memory.py` | Checked Puma workload, CPU-isolated process clients, RSS/latency gates at 105% and throughput at 95% of stock |
 
@@ -39,6 +40,7 @@ Most Linux runners expect this repository mounted at `/work`, an appropriate com
 ## Notes and artifacts
 
 - [ruby-4.0.9-upgrade.md](ruby-4.0.9-upgrade.md): source/toolchain identities, fresh checks and remaining failures.
+- [puma-combined-candidate.md](puma-combined-candidate.md): combined amd64 reclamation/performance candidate, packed OpenSSL, verified TLS and six matched longer-warmup runs; all stock-relative gates still fail.
 - [puma-memory.md](puma-memory.md): memory/performance targets, reproducible workload, candidate trade-offs and remaining gaps.
 - [upstream-filc-mmap-gc.md](upstream-filc-mmap-gc.md): FUGC reservation-accounting proposal and malloc/free reproducer, posted as [#351](https://github.com/pizlonator/fil-c/issues/351).
 - [upstream-filc-relr.md](upstream-filc-relr.md): packed-relocation loader bug report and toolchain proposal, posted as [#352](https://github.com/pizlonator/fil-c/issues/352).
