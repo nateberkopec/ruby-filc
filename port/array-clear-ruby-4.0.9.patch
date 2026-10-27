@@ -1,0 +1,23 @@
+diff --git a/array.c b/array.c
+index e23c4db..44db40b 100644
+--- a/array.c
++++ b/array.c
+@@ -4862,6 +4862,18 @@ rb_ary_clear(VALUE ary)
+             ary_resize_capa(ary, ARY_DEFAULT_SIZE * 2);
+         }
+     }
++#ifdef __FILC__
++    bool heap = !ARY_EMBED_P(ary);
++    VALUE *ptr = heap ? ARY_HEAP_PTR(ary) : NULL;
++    long capacity = heap ? ARY_CAPA(ary) : 0;
++    if (capacity) zmemset(ptr, 0, capacity * sizeof(VALUE));
++    zmemset(&RARRAY(ary)->as, 0,
++            rb_gc_obj_slot_size(ary) - offsetof(struct RArray, as));
++    if (heap) {
++        ARY_SET_PTR(ary, ptr);
++        ARY_SET_CAPA(ary, capacity);
++    }
++#endif
+     ary_verify(ary);
+     return ary;
+ }

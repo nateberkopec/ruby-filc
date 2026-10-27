@@ -182,6 +182,22 @@ Receipts: `ta/registry-corrected-*`, `ta/registry-checked-*`, `ta/registry-runti
 
 A separate lifetime issue remains: clearing a 100-element array leaves 32 marker objects reachable in both the baseline and registry candidate; explicitly filling it with nil before clearing leaves two. Stock retains zero in either case. The array's unused capacity still contains references visible to Fil-C. This has not been fixed by changing the object registry. Receipt: `ta/array-clear-lifetime.log`.
 
+## Array#clear retention fix candidate
+
+`array-clear-ruby-4.0.9.patch` contains source commit `eb0e109` on `filc-ruby-4.0.9-array-retention`. It changes only `array.c` and also applies to the default exported source; measurements below use the shape-table plus weak-map build. It remains outside the default export.
+
+Two independent references survive an ordinary clear: entries in the retained backing-buffer capacity, and pointer capabilities in the array object's storage. Fil-C's compiler emits scalar integer stores without clearing prior pointer metadata. Reusing the first two inline element slots as heap length/capacity therefore leaves the original two objects reachable, even when the backing buffer has been filled with nil. A shared array can also retain its former backing buffer through the now-unused inline representation.
+
+The fix uses Fil-C's explicit `zmemset` to clear the kept buffer and inactive object storage, then restores the heap pointer and capacity. It does not free another array's shared storage, alter capacity policy, clear the object's header/private GC fields, or change non-Fil-C behavior. The ordinary compiler-optimizable memset is deliberately not used for clearing capabilities.
+
+`probes/ruby/array-clear-lifetime.rb` checks empty, embedded, heap, expanded-to-heap and shared arrays in separate Ruby processes. It verifies collection of all removed marker objects, sibling contents, instance variables and reuse. The old build fails on retained objects; the candidate and stock release all markers. Other shrinking operations and pointer/scalar union transitions still need auditing; this is not general leak-freedom evidence.
+
+Validation: normal and checked builds each pass all 2,044 bootstrap tests and the Array/Ractor selection (491 tests, 22,215 assertions, zero failures/errors, 16 skips). The five lifetime cases pass on both builds and on a GCC-built miniruby. The initial GCC probe launcher failed because miniruby cannot load Open3; the cases were rerun directly after making the parent-only standard-library dependencies conditional. A broader GC/ObjectSpace selection remains red on both before/after libraries: 157 tests, 11 failures and 14 errors, with identical failure identities and no safety errors or descriptor warnings.
+
+In the same CPU-isolated 70,000-request workload, median RSS changes from 250,252 to 223,688 KiB and sampled peak from 307,548 to 304,532 KiB. Load throughput is 1,691.9 versus 1,677.0 requests/s; p50/p95/p99 latency changes from 2.376/6.867/9.649 to 2.426/6.755/9.263 ms. This single pair does not establish a repeatable performance difference. The combined candidate still fails every ratio gate: 6.877x stock median RSS, 8.919x peak RSS, 18.3% of stock throughput and 6.080x stock p50 latency. It does not make the weak-map registry eligible for promotion.
+
+Receipts: `ta/array-clear-*` and `ta/puma-performance-array-clear.*`. Validation of this fix independently of the slower registry candidate remains pending.
+
 ## Longer matched soak
 
 The unchanged cache-chunks plus RELR build, without either newer candidate, completed 4,010,000 checked requests in 4,388.76 seconds. Stock completed the same count in 2,702.95 seconds. Neither run added a cgroup OOM event or kill.
