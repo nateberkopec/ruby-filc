@@ -35,7 +35,9 @@ Most Linux runners expect this repository mounted at `/work`, an appropriate com
 ## Notes and artifacts
 
 - [ruby-4.0.9-upgrade.md](ruby-4.0.9-upgrade.md): source/toolchain identities, fresh checks and remaining failures.
-- [puma-memory.md](puma-memory.md): memory target, reproducible workload, cache fix and remaining footprint gap.
+- [puma-memory.md](puma-memory.md): memory target, reproducible workload, cache/relocation improvements and remaining footprint gap.
+- [upstream-filc-mmap-gc.md](upstream-filc-mmap-gc.md): unposted FUGC reservation-accounting proposal with a standalone malloc/free reproducer.
+- [upstream-filc-relr.md](upstream-filc-relr.md): unposted packed-relocation loader bug report and toolchain proposal.
 
 - [STATUS.md](STATUS.md): pre-recovery history and remaining compatibility gaps.
 - [release-4.0.7-history.md](release-4.0.7-history.md): prior image results, retained without relabeling them as 4.0.9 validation.

@@ -81,7 +81,9 @@ Remaining gaps include memory pressure/OOM, GC APIs and events, signal/crash rep
 
 A checked order-processing Puma workload and matched GCC Ruby 4.0.9 control now measure the Ruby process's RSS, PSS and USS independently of the load client. The Fil-C shape-ancestor cache allocates chunks on demand instead of reserving 384 MiB up front, which inflated the native collector's live-memory accounting. In the controlled development-build comparison this reduced median RSS by 59% and peak RSS by 60%.
 
-**The port is still far above stock Ruby's memory use.** In a 70,000-request run, the clean exported runtime used 322 MiB median RSS versus 33 MiB for stock. Neither these measurements nor the focused retention checks prove general leak freedom. The benchmark preserves the 105% acceptance limit and fails it; see [Puma memory measurements and reproduction](port/puma-memory.md).
+The interpreter and `libruby` now use packed ELF relative relocations, saving about 19 MiB of library RSS without removing safety checks. Native-extension flags remain unchanged because a separate Fil-C loader-metadata problem prevents applying packing generally.
+
+**The port is still far above stock Ruby's memory use.** In the latest 70,000-request run, the clean packed runtime used 296 MiB median RSS versus 33 MiB for stock. Neither these measurements nor the focused retention checks prove general leak freedom. The benchmark preserves the 105% acceptance limit and fails it; see [Puma memory measurements and reproduction](port/puma-memory.md). Local upstream drafts cover [sparse-mapping GC headroom](port/upstream-filc-mmap-gc.md) and [packed-library loading](port/upstream-filc-relr.md); neither has been posted.
 
 ## Recovery and provenance
 

@@ -44,7 +44,7 @@ RUN curl -fL --retry 3 "https://cache.ruby-lang.org/pub/ruby/4.0/ruby-${RUBY_VER
     && tar -xf ruby.tar.xz \
     && cd "ruby-${RUBY_VERSION}" \
     && patch -p1 < ../ruby-4.0.9-filc.patch \
-    && ./configure \
+    && XLDFLAGS="-Wl,-z,pack-relative-relocs" ./configure \
       --prefix=/usr/local \
       --enable-shared \
       --disable-yjit --disable-zjit --without-jit \

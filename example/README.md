@@ -20,6 +20,8 @@ mise run test
 
 The build uses pristine Ruby 4.0.9 plus `ruby-4.0.9-filc.patch`, not an existing Ruby executable. It preserves the previously accepted port changes through the historical `78e4bb7` checkpoint and Ruby 4.0.9's upstream fixes, plus the Fil-C shape-cache allocation improvement. The separate VM-stack-retirement and forwarding candidates are not included.
 
+The interpreter and `libruby` use ELF packed relative relocations to reduce mapped relocation metadata. The flag is deliberately scoped through Ruby's `XLDFLAGS`, not general `LDFLAGS`: some Fil-C 0.687 native extensions fail to load when packed because their link omits a required glibc ABI dependency. Extension flags remain unchanged. See the [memory measurements](../port/puma-memory.md) and [unposted upstream reproducer](../port/upstream-filc-relr.md).
+
 | Artifact | SHA-256 |
 |---|---|
 | Ruby 4.0.9 `.tar.xz` | `a8057adb39f51ad6dc3106237504c93dd792bb515837b4fe7817ae21ed7e51f4` |
@@ -60,7 +62,7 @@ The response at `http://localhost:9292/` reports the running Ruby version and co
 
 ## Checks and limitations
 
-`mise run test` rebuilds as needed and runs the smoke and cache/concurrency regression scripts in an 8 GiB, no-extra-swap container. These cover loading dependencies, fibers and GC, HTTPS, compiling/loading a native extension, intentional native buffer-overflow detection, weak method caches, reentrant callbacks and concurrent class construction. They are not the complete Ruby suites.
+`mise run test` rebuilds as needed and runs the smoke and cache/concurrency regression scripts in an 8 GiB, no-extra-swap container. These cover loading dependencies, fibers and GC, HTTPS, compiling/loading a native extension, intentional native buffer-overflow detection, packed interpreter/library relocations, weak method caches, reentrant callbacks and concurrent class construction. They are not the complete Ruby suites.
 
 Run the two version checks independently or through `mise run lint`:
 

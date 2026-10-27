@@ -55,6 +55,13 @@ void Init_filc_probe(void) {
 C
 ruby -rmkmf -e 'create_makefile("filc_probe")'
 make
+libruby=$(ruby -rrbconfig -e 'print File.join(RbConfig::CONFIG.fetch("libdir"), RbConfig::CONFIG.fetch("LIBRUBY_SO"))')
+for binary in "$libruby" "$(command -v ruby)"; do
+    if ! readelf -d "$binary" | grep -q '(RELR)'; then
+        printf 'Missing packed relative relocations: %s\n' "$binary" >&2
+        exit 1
+    fi
+done
 ruby -I. -rfilc_probe -e 'raise unless filc_hello == "Fil-C native extension"'
 set +e
 ruby -I. -rfilc_probe -e 'filc_overflow' > panic.log 2>&1

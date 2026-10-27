@@ -52,9 +52,9 @@ A longer run with 10,000 warmup requests followed by 60,000 measured requests ch
 
 The clean exported build, without the separate VM-stack/forwarding candidates or GC tuning, also checked all 70,000 responses. It used 329,258 KiB median RSS and 386,724 KiB peak, versus the same stock control's 34,220 / 36,008 KiB: 9.62x median and 10.74x peak. Its idle-growth screen was 4.2%, post-GC RSS was 217,144 KiB, and post-GC live-object count was 31,721. The 105% comparison fails. Receipts: `ta/puma-memory-clean-long.*` and `ta/puma-memory-clean-comparison.*`.
 
-The remaining gap is not just garbage awaiting reclamation: in the long run, the Fil-C `libruby` mappings alone occupied 53,356 KiB RSS, versus 4,472 KiB for stock `libruby`. The instrumented library by itself exceeded the entire stock process's 105% budget. Meeting that budget with this application requires further compiler/runtime footprint work, not merely clearing Ruby object references.
+The cache-only build's remaining gap was not just garbage awaiting reclamation: in the long run, the Fil-C `libruby` mappings alone occupied 53,356 KiB RSS, versus 4,472 KiB for stock `libruby`. That build's instrumented library by itself exceeded the entire stock process's 105% budget. The relocation improvement below removes some of this fixed overhead, but meeting the budget still requires more compiler/runtime footprint work, not merely clearing Ruby object references.
 
-## Validation and delivery
+## Shape-cache validation and delivery
 
 The isolated change is source commit `1a83325` on `filc-ruby-4.0.9-shape-chunks`, based directly on the released port baseline. Development-branch commit `b0ad29c` applies the same change alongside the separate stack/forwarding candidates. Only the isolated change was exported into the default Docker build.
 
@@ -64,8 +64,45 @@ The isolated change is source commit `1a83325` on `filc-ruby-4.0.9-shape-chunks`
 - `probes/ruby/shape-cache-chunks.rb` passes on stock, normal, checked and clean-image runtimes. It exercises more than 380,000 cache nodes, chunk boundaries, compiled ivar reads, copying, removal/reinsertion, explicit GC and four concurrent Ractors.
 - A fresh build from pristine Ruby plus the consolidated patch succeeds. Clean-image smoke, libc audit, existing cache/concurrency and GC-state checks, mapped-buffer checks, freshly compiled nio4r/Puma probes and the new shape-cache probe all pass.
 
-Clean build image: `sha256:0a12bf4430d6d4140898e72786e5c5511da282973a0ea95dd86f160f406e7069`. Runtime image: `sha256:d582697cf5293db3fa457702b5f59cf365397405e089da291a67e3fec08d34b6`. The local `ruby-filc{,-build}:4.0.9` tags include the cache change. Nothing was published. `mise run test` includes the new shape-cache system probe; the failing comparative memory gate remains a separate explicit command.
+Cache-only build image: `sha256:0a12bf4430d6d4140898e72786e5c5511da282973a0ea95dd86f160f406e7069`. Runtime image: `sha256:d582697cf5293db3fa457702b5f59cf365397405e089da291a67e3fec08d34b6`. These were the local `ruby-filc{,-build}:4.0.9` tags before relocation packing. Nothing was published. `mise run test` includes the new shape-cache system probe; the failing comparative memory gate remains a separate explicit command.
 
 Consolidated patch SHA-256: `926e4388a264f9c9d608371ff18bf9c7d18bb8c499203455ed36f2877125cb6a`. Isolated patch SHA-256: `243646325611fb52def6d51deb970fe270610ea218c13fa9350384d41a67181c`.
 
 Raw receipts are under the ignored `ta/` directory: `puma-memory-*`, `shape-chunks-*`, and `puma-memory-chunked-long/`. The full port remains experimental; memory improvements must not be read as full Ruby compatibility or acceptance of the separate VM-stack/forwarding candidates.
+
+## ELF relocation packing
+
+The cache-only `libruby` contains 843,010 relative relocations. Its `.rela.dyn` section occupies 20,458,992 bytes. ELF RELR packing reduces that section to 226,752 bytes and adds about 223 KiB of packed relocation entries, without removing machine code, safety checks or stack-trace metadata. This is about 19 MiB less mapped relocation data.
+
+The Docker build now sets `XLDFLAGS=-Wl,-z,pack-relative-relocs` while configuring Ruby. Ruby applies this to its interpreter and shared library, but does not propagate it into extension `LDFLAGS` or `DLDFLAGS`. Using general `LDFLAGS` instead caused a clean build to fail when loading `monitor.so`: Fil-C's link omitted the `GLIBC_ABI_DT_RELR` dependency needed by the loader. A standalone reproducer and a proposed linker fix are in [the unposted RELR draft](upstream-filc-relr.md). The current build does not disable the loader check or apply the broken global setting.
+
+Three fresh sequential runs each checked 70,000 HTTP responses, with the same workload, CPU set and 4 GiB/no-extra-swap limits:
+
+| Metric, KiB | Stock GCC Ruby | Fil-C, cache chunks only | Fil-C, chunks + RELR |
+|---|---:|---:|---:|
+| Median RSS | 34,154 | 330,302 | 303,000 |
+| Sampled peak RSS | 37,164 | 384,832 | 375,932 |
+| Final measured `libruby` RSS | 4,472 | 53,620 | 34,128 |
+| Diagnostic post-GC RSS | 36,744 | 214,332 | 186,872 |
+
+The library's RSS falls by 19,492 KiB, consistent with the smaller relocation representation. Whole-process results also depend on collection timing; this one paired workload is not a promise of a fixed percentage improvement. No GC tuning or forced collection was added during the measured rounds.
+
+The packed runtime still uses **8.872x stock median RSS and 10.115x stock peak RSS**, so the unchanged 105% gate fails. Its idle-growth screen is -7.8%; stock's is +8.5% and fails that screen. The packed run lasts about 66.6 seconds and ends with 31,723 Ruby live objects. These are not long-duration leak-freedom results. `libruby`, libc and libcrypto alone still exceed the stock application's total memory budget.
+
+Validation:
+
+- Fresh release-toolchain build, runtime smoke/libc audit, cache/concurrency/GC-state/buffer checks, native nio4r/Puma builds and their HTTP probes pass.
+- `port/test-release.sh` passes on the actual runtime image, including the cache-chunk/Ractor probe, packed-interpreter/library checks and intentional native buffer-overflow detection.
+- All 2,044 bootstrap tests pass in 145.29 seconds at the established 8 GiB test limit. An initial 4 GiB run fails the 1,000-Ractor case at `bootstraptest/test_ractor.rb:2514`, with one OOM kill. The unpacked cache-only build reproduces that same failure and one OOM kill at 4 GiB. Packing does not resolve this existing high-concurrency memory limit.
+- Neither 4 GiB Puma measurement container records an additional OOM event or kill during its HTTP measurements.
+- Version-lint CLI cases, Ruby release freshness and the working-tree secret scan pass. Fil-C release freshness is checked through the read-only GitHub Executor query (latest stable: v0.687), rather than the hook's direct GitHub request. Commit hooks are replaced by these explicit checks and the build/system checks above for this local change.
+
+Current build image: `sha256:c987d779f7ea4c8749d0ace963f02f62840b33b425021539e69f9145365a46d4`. Runtime image: `sha256:c1783290f942b942f471a5dc53e9167e0c710858fc6d094d498517c8c209c6a4`. The local default version tags now include relocation packing. The consolidated Ruby patch hash is unchanged; the separate stack/forwarding candidates remain excluded. Nothing has been published.
+
+Receipts: `ta/relr-core-build.*`, `ta/relr-runtime-checks.log`, `ta/relr-release-checks.log`, `ta/relr-bootstrap*`, `ta/relr-baseline-4g-*`, `ta/relr-*-events-*.log`, `ta/puma-memory-relr-control.*`, and `ta/puma-memory-relr-comparison/`. The final validation runner exits one because the memory acceptance comparison fails, not because its preceding runtime checks failed.
+
+## Upstream GC accounting proposal
+
+`probes/c/mmap-gc-pressure.c` isolates the sparse-reservation problem without Ruby. It allocates and immediately frees about 195 MiB of small objects. With no reserved mapping, three runs peak at 16,236-84,760 KiB and complete 8-180 automatic cycles. Keeping a 384 MiB mapping alive while touching one byte produces 217,648-223,124 KiB peaks and only 0-1 automatic cycles. The starting peaks remain below 18 MiB.
+
+The source and threshold logs show why: the surviving reservation raises the default 1.5x threshold, granting about 192 MiB of additional allocation headroom. This is not evidence of a permanent leak. The [unposted proposal](upstream-filc-mmap-gc.md) asks about separating reserved size from the survivor footprint used to set additional headroom, while preserving capability safety, mapping lifetime and pressure from new allocations. No speculative collector policy change has been made locally. Both upstream drafts require approval before posting.
