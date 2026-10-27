@@ -7,6 +7,12 @@ build=$(realpath -m "${2:?new build directory required}")
 baseruby=$(realpath "${3:?stock bootstrap Ruby required}")
 runtime_prefix=$(realpath "${4:?existing matching Fil-C runtime prefix required}")
 compiler_prefix=${FILC_PREFIX:-/opt/fil}
+shift 4
+patches=()
+for source_patch in "$@"; do
+    source_patch=$(realpath -e "$source_patch")
+    patches+=("$source_patch")
+done
 expected=$(awk -F= '$1 == "ARG RUBY_SHA256" { print $2 }' "$root/example/Dockerfile")
 printf '%s  %s\n' "$expected" "$archive" | sha256sum -c -
 # Refuse reuse: old object files would invalidate a compile-flag comparison.
@@ -14,6 +20,10 @@ mkdir "$build"
 tar -xf "$archive" -C "$build" --strip-components=1
 cd "$build"
 patch -p1 < "$root/ruby-4.0.9-filc.patch"
+for source_patch in "${patches[@]}"; do
+    sha256sum "$source_patch"
+    patch -p1 < "$source_patch"
+done
 export CC="$compiler_prefix/bin/filcc" CXX="$compiler_prefix/bin/fil++"
 export PKG_CONFIG="$compiler_prefix/bin/pkg-config"
 export PKG_CONFIG_LIBDIR="$compiler_prefix/lib/pkgconfig:$compiler_prefix/share/pkgconfig"

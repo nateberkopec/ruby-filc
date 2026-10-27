@@ -87,6 +87,8 @@ The interpreter and `libruby` now use packed ELF relative relocations, saving ab
 
 An isolated [`-g0` compilation experiment](port/filc-debug-info.md) reduces Fil-C's resident diagnostic metadata without disabling safety checks. Its matched run lowers median RSS by 6.7% relative to Fil-C baseline, but still uses 4.679x stock RSS and delivers 22.6% of stock throughput. It sacrifices C file/line detail in native panic traces; Ruby backtrace tests pass. It remains outside the default build.
 
+A further [checked-arithmetic and CPU-initialization candidate](port/checked-arithmetic-cpu-init.md) removes avoidable size-check temporaries and initializes Fil-C's CPU-feature detector before native extensions choose optimized paths. It passes bootstrap and selected JSON/core tests, and its repeated matched runs improve throughput about 3.2% over the `-g0` control. It still delivers only about 23.4% of stock throughput, so it remains experimental.
+
 ## Recovery and provenance
 
 The original temporary workspace disappeared. Compiler-volume and Docker-image copies survived; retained successful file operations recovered 125 text assets. The recovered Ruby 4.0.7 consolidated patch and revised VM-stack patch matched their recorded hashes exactly. Those original exports remain in Git history; the current Ruby 4.0.9 exports have new identities. Original local Git commit history and most raw test logs were not recovered. Old commit IDs and log paths in the investigation notes are historical identifiers, not commits in this repository or promises that those logs are present.

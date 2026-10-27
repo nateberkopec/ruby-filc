@@ -1,0 +1,17 @@
+diff --git a/eval.c b/eval.c
+index 0239364..e0012cf 100644
+--- a/eval.c
++++ b/eval.c
+@@ -69,6 +69,12 @@ ruby_setup(void)
+     if (GET_VM())
+         return 0;
+ 
++#if defined(__FILC__) && defined(__x86_64__)
++    /* Fil-C's shared CPU-feature table is not initialized by a constructor.
++     * Initialize it before Ruby or native extensions select optimized paths. */
++    __builtin_cpu_init();
++#endif
++
+     /*
+      * Disable THP early before mallocs happen because we want this to
+      * affect as many future pages as possible for CoW-friendliness

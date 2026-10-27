@@ -1,0 +1,51 @@
+diff --git a/include/ruby/internal/memory.h b/include/ruby/internal/memory.h
+index 861a671..73e6d17 100644
+--- a/include/ruby/internal/memory.h
++++ b/include/ruby/internal/memory.h
+@@ -588,6 +588,15 @@ rbimpl_size_mul_overflow(size_t x, size_t y)
+ static inline size_t
+ rbimpl_size_mul_or_raise(size_t x, size_t y)
+ {
++#ifdef __FILC__
++    /* Keep this scalar: returning the overflow struct can materialize a
++     * managed temporary even for MEMCPY with a one-byte element size. */
++    if (RB_UNLIKELY(y != 0 && x > SIZE_MAX / y)) {
++        ruby_malloc_size_overflow(x, y);
++        RBIMPL_UNREACHABLE_RETURN(0);
++    }
++    return x * y;
++#else
+     struct rbimpl_size_overflow_tag size =
+         rbimpl_size_mul_overflow(x, y);
+ 
+@@ -598,6 +607,7 @@ rbimpl_size_mul_or_raise(size_t x, size_t y)
+         ruby_malloc_size_overflow(x, y);
+         RBIMPL_UNREACHABLE_RETURN(0);
+     }
++#endif
+ }
+ 
+ #if defined(__DOXYGEN__)
+@@ -663,6 +673,14 @@ rbimpl_size_add_overflow(size_t x, size_t y)
+ static inline size_t
+ rbimpl_size_add_or_raise(size_t x, size_t y)
+ {
++#ifdef __FILC__
++    size_t result = x + y;
++    if (RB_UNLIKELY(result < x)) {
++        ruby_malloc_add_size_overflow(x, y);
++        RBIMPL_UNREACHABLE_RETURN(0);
++    }
++    return result;
++#else
+     struct rbimpl_size_overflow_tag size =
+         rbimpl_size_add_overflow(x, y);
+ 
+@@ -673,6 +691,7 @@ rbimpl_size_add_or_raise(size_t x, size_t y)
+         ruby_malloc_add_size_overflow(x, y);
+         RBIMPL_UNREACHABLE_RETURN(0);
+     }
++#endif
+ }
+ 
+ /**

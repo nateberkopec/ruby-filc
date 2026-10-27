@@ -270,6 +270,12 @@ A fresh amd64 build with `debugflags=-g0` reduces `.data.rel.ro` in `libruby` fr
 
 In a new four-way matched comparison, baseline Fil-C uses 190,614 KiB median RSS and delivers 782.7 requests/s; the `-g0` candidate uses 177,924 KiB and delivers 791.5 requests/s. Stock uses 38,024 KiB and delivers 3,508.9 requests/s. The candidate still fails every ratio gate. The shape-table-only candidate uses 167,752 KiB but delivers 757.6 requests/s, with higher median latency and substantially more collections. Neither configuration is promoted, and no combined result is inferred. See [full configuration, validation, diagnostics and measurements](filc-debug-info.md).
 
+## Checked arithmetic and CPU initialization
+
+An additional amd64 candidate keeps allocation-size overflow checks scalar and initializes the existing x86 CPU-feature detector during Ruby setup. Baseline Fil-C otherwise reports SSE2 unavailable until explicit initialization, so JSON selects its scalar fallback despite having compiled its SSE2 implementation. The combined candidate preserves hardware feature detection and all memory-safety checks.
+
+With rebuilt `-g0` standard extensions, two candidate runs deliver 814.3/814.5 requests/s versus 792.4/786.3 for the prior `-g0` controls. Candidate median RSS is 176,348/176,224 KiB, versus stock's 36,084/36,340 KiB and 3,479.5/3,470.0 requests/s. All ratio gates still fail; both stock warmed-growth screens also fail. Neither patch is promoted. See [the profiles, checked-arithmetic tests, startup regression, full measurement table and reproduction](checked-arithmetic-cpu-init.md).
+
 ## Upstream GC accounting proposal
 
 `probes/c/mmap-gc-pressure.c` isolates the sparse-reservation problem without Ruby. It allocates and immediately frees about 195 MiB of small objects. With no reserved mapping, three runs peak at 16,236-84,760 KiB and complete 8-180 automatic cycles. Keeping a 384 MiB mapping alive while touching one byte produces 217,648-223,124 KiB peaks and only 0-1 automatic cycles. The starting peaks remain below 18 MiB.

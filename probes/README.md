@@ -24,7 +24,9 @@ docker run --rm --memory=8g --memory-swap=8g \
 | `allocation-pressure.rb`, `class-retention*.rb`, `struct-retention.rb`, `weakmap-gc-phases.rb` | Allocation/lifetime measurements, not broad correctness verdicts |
 | `nio4r.rb`, `puma.rb` | Native-gem probes; first build matching native extensions as described in `port/native-gems/README.md` |
 | `puma-memory-app.rb` | Order-processing HTTP app driven and measured by `port/benchmark-puma-memory.sh`; the memory, throughput and latency targets are still unmet |
-| `puma-order-hotpaths.rb` | Checked parse/transform/digest/generate diagnostics without HTTP; accepts iteration count and phase (`all` by default), and is not an acceptance benchmark |
+| `puma-order-hotpaths.rb` | Checked parse/transform/digest/generate diagnostics without HTTP; records main-thread/process CPU and wall time, accepts iteration count and phase (`all` by default), and is not an acceptance benchmark |
+| `checked-size.rb` | Boundary, random and constant-factor size arithmetic against arbitrary-precision results; checks exact overflow errors using the matching `c/checked-size/` extension |
+| `cpu-features.rb` | x86-64 SSE2 detection before explicit initialization and initialization idempotence, using `c/cpu-features/`; catches the baseline Fil-C startup defect |
 | `array-clear-lifetime.rb` | Checks removed-object collection, sharing, instance variables and reuse after Array#clear; requires an array-retirement candidate and intentionally fails on the default Fil-C build |
 | `array-shrink-lifetime.rb` | Checks removed and surviving objects across six shrinking operations and four storage histories; requires `port/array-shrink-ruby-4.0.9.patch`, which also covers clear and replaces (not stacks on) the earlier clear-only candidate |
 | `hash-delete-lifetime.rb`, `set-delete-lifetime.rb` | Exact removed/surviving object lifetimes across deletion, filtering, clearing and replacement; see the separate [table-retirement candidate](../port/table-retirement.md) |
@@ -50,6 +52,7 @@ The release-image regression runner is `example/regressions.sh`. The candidate r
 - `cache-heap/`, `vm-stack-heap/`: native heap/root inspection helpers for matching Ruby/Fil-C builds. `FilcCacheHeap.dump(fd)` writes the native heap graph; `FilcCacheHeap.address(object)` reports an object's address; `FilcCacheHeap.scavenge` synchronously releases reclaimable allocator memory. For diagnostic reclamation snapshots, collect first and then scavenge. These intrusive operations are not part of the normal Puma memory acceptance workload.
 - `string-hash-compare/`: Ruby extension exposing the real `rb_str_hash_cmp` result for the corresponding Ruby probe. Build with the selected Ruby's `extconf.rb` and `make` in a separate ignored build directory.
 - `st-table-lifetime/`: Ruby extension wrapping direct `st_table` APIs without Hash's automatic post-deletion compaction. Its stock mark callback traces only live entries, allowing matched stock/Fil-C object-lifetime tests. See [build commands and results](../port/table-retirement.md).
+- `checked-size/`, `cpu-features/`: native probes for [scalar checked arithmetic and CPU-feature initialization](../port/checked-arithmetic-cpu-init.md). Build with each matching Ruby's `extconf.rb`/`make`, then use `-I` to load the extension.
 - `checked-access.c`: valid memory/indirect-call control plus intentional bounds, freed-memory, read-only and argument-count violations. `port/check-filc-debug-flags.sh` compares rejection with `-ggdb3` and `-g0`; see [the debug-information experiment](../port/filc-debug-info.md).
 - `timezone.c`: timezone integration.
 

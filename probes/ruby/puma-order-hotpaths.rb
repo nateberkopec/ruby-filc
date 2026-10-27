@@ -50,14 +50,17 @@ end
 100.times { raise 'incorrect warmup result' unless operation.call == reference }
 allocated = GC.stat(:total_allocated_objects)
 started_cpu = Process.clock_gettime(Process::CLOCK_PROCESS_CPUTIME_ID)
+started_thread_cpu = Process.clock_gettime(Process::CLOCK_THREAD_CPUTIME_ID)
 started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 iterations.times do
   raise 'incorrect diagnostic result' unless operation.call == reference
 end
 elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+thread_cpu = Process.clock_gettime(Process::CLOCK_THREAD_CPUTIME_ID) - started_thread_cpu
 cpu = Process.clock_gettime(Process::CLOCK_PROCESS_CPUTIME_ID) - started_cpu
 puts JSON.generate(ruby: RUBY_DESCRIPTION, phase: phase, iterations: iterations,
                    elapsed_seconds: elapsed, process_cpu_seconds: cpu,
+                   main_thread_cpu_seconds: thread_cpu,
                    iterations_per_second: iterations / elapsed,
                    allocated_objects: GC.stat(:total_allocated_objects) - allocated,
                    diagnostic_only: true)
