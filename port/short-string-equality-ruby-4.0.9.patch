@@ -1,0 +1,57 @@
+diff --git a/string.c b/string.c
+index 095d62e..efc1ae3 100644
+--- a/string.c
++++ b/string.c
+@@ -4159,6 +4159,43 @@ rb_str_hash(VALUE str)
+     return str_do_hash(str);
+ }
+ 
++static inline bool
++str_hash_bytes_equal(const char *a, const char *b, size_t len)
++{
++#ifdef __FILC__
++    /* Fixed-size copies become checked, unaligned loads. Compare the first and
++     * last words (which may overlap), never bytes outside the string. */
++    if (len <= 16) {
++        if (len >= 8) {
++            uint64_t a0, a1, b0, b1;
++            memcpy(&a0, a, sizeof(a0));
++            memcpy(&b0, b, sizeof(b0));
++            memcpy(&a1, a + len - sizeof(a1), sizeof(a1));
++            memcpy(&b1, b + len - sizeof(b1), sizeof(b1));
++            return a0 == b0 && a1 == b1;
++        }
++        if (len >= 4) {
++            uint32_t a0, a1, b0, b1;
++            memcpy(&a0, a, sizeof(a0));
++            memcpy(&b0, b, sizeof(b0));
++            memcpy(&a1, a + len - sizeof(a1), sizeof(a1));
++            memcpy(&b1, b + len - sizeof(b1), sizeof(b1));
++            return a0 == b0 && a1 == b1;
++        }
++        if (len >= 2) {
++            uint16_t a0, a1, b0, b1;
++            memcpy(&a0, a, sizeof(a0));
++            memcpy(&b0, b, sizeof(b0));
++            memcpy(&a1, a + len - sizeof(a1), sizeof(a1));
++            memcpy(&b1, b + len - sizeof(b1), sizeof(b1));
++            return a0 == b0 && a1 == b1;
++        }
++        return !len || a[0] == b[0];
++    }
++#endif
++    return memcmp(a, b, len) == 0;
++}
++
+ int
+ rb_str_hash_cmp(VALUE str1, VALUE str2)
+ {
+@@ -4168,7 +4205,7 @@ rb_str_hash_cmp(VALUE str1, VALUE str2)
+     RSTRING_GETMEM(str2, ptr2, len2);
+     return (len1 != len2 ||
+             !rb_str_comparable(str1, str2) ||
+-            memcmp(ptr1, ptr2, len1) != 0);
++            !str_hash_bytes_equal(ptr1, ptr2, len1));
+ }
+ 
+ /*

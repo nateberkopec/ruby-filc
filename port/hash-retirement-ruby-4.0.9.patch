@@ -1,0 +1,145 @@
+diff --git a/hash.c b/hash.c
+index 1afe77f..513db64 100644
+--- a/hash.c
++++ b/hash.c
+@@ -442,6 +442,9 @@ ar_clear_entry(VALUE hash, unsigned int index)
+ {
+     ar_table_pair *pair = RHASH_AR_TABLE_REF(hash, index);
+     pair->key = Qundef;
++#ifdef __FILC__
++    pair->val = Qundef;
++#endif
+     ar_hint_set_hint(hash, index, RHASH_AR_CLEARED_HINT);
+ }
+ 
+@@ -608,7 +611,11 @@ RHASH_AR_TABLE_CLEAR(VALUE h)
+     RBASIC(h)->flags &= ~RHASH_AR_TABLE_SIZE_MASK;
+     RBASIC(h)->flags &= ~RHASH_AR_TABLE_BOUND_MASK;
+ 
++#ifdef __FILC__
++    zmemset(RHASH_AR_TABLE(h), 0, sizeof(ar_table));
++#else
+     memset(RHASH_AR_TABLE(h), 0, sizeof(ar_table));
++#endif
+ }
+ 
+ NOINLINE(static int ar_equal(VALUE x, VALUE y));
+@@ -1179,6 +1186,9 @@ static void
+ ar_clear(VALUE hash)
+ {
+     if (RHASH_AR_TABLE(hash) != NULL) {
++#ifdef __FILC__
++        zmemset(RHASH_AR_TABLE(hash), 0, sizeof(ar_table));
++#endif
+         RHASH_AR_TABLE_SIZE_SET(hash, 0);
+         RHASH_AR_TABLE_BOUND_SET(hash, 0);
+     }
+diff --git a/internal/hash.h b/internal/hash.h
+index b63a07f..3e71de1 100644
+--- a/internal/hash.h
++++ b/internal/hash.h
+@@ -180,7 +180,11 @@ RHASH_ST_SIZE(VALUE h)
+ static inline void
+ RHASH_ST_CLEAR(VALUE h)
+ {
++#ifdef __FILC__
++    zmemset(RHASH_ST_TABLE(h), 0, sizeof(st_table));
++#else
+     memset(RHASH_ST_TABLE(h), 0, sizeof(st_table));
++#endif
+ }
+ 
+ static inline unsigned
+diff --git a/st.c b/st.c
+index 909967e..fa73864 100644
+--- a/st.c
++++ b/st.c
+@@ -119,6 +119,9 @@
+ #include <stdlib.h>
+ #endif
+ #include <string.h>
++#ifdef __FILC__
++#include <stdfil.h>
++#endif
+ 
+ #ifdef __GNUC__
+ #define PREFETCH(addr, write_p) __builtin_prefetch(addr, write_p)
+@@ -424,7 +427,13 @@ set_bin(st_index_t *bins, int s, st_index_t n, st_index_t v)
+ 
+ /* Macros for marking and checking deleted entries given by their
+    pointer E_PTR.  */
++#ifdef __FILC__
++/* Fil-C traces capabilities even in logically deleted hash/set entries. */
++#define MARK_ENTRY_DELETED(e_ptr) \
++    (zmemset((e_ptr), 0, sizeof(*(e_ptr))), (e_ptr)->hash = RESERVED_HASH_VAL)
++#else
+ #define MARK_ENTRY_DELETED(e_ptr) ((e_ptr)->hash = RESERVED_HASH_VAL)
++#endif
+ #define DELETED_ENTRY_P(e_ptr) ((e_ptr)->hash == RESERVED_HASH_VAL)
+ 
+ /* Return bin size index of table TAB.  */
+@@ -657,6 +666,9 @@ st_init_strcasetable_with_size(st_index_t size)
+ void
+ st_clear(st_table *tab)
+ {
++#ifdef __FILC__
++    zmemset(tab->entries, 0, tab->entries_bound * sizeof(st_table_entry));
++#endif
+     make_tab_empty(tab);
+     tab->rebuilds_num++;
+ }
+@@ -794,6 +806,11 @@ rebuild_table_with(st_table *const new_tab, st_table *const tab)
+     }
+ 
+     assert(new_tab->num_entries == tab->num_entries);
++#ifdef __FILC__
++    /* In-place compaction leaves duplicate capabilities beyond the new bound. */
++    if (new_tab == tab)
++        zmemset(new_entries + ni, 0, (bound - ni) * sizeof(st_table_entry));
++#endif
+ }
+ 
+ static void
+@@ -1606,7 +1623,11 @@ st_general_foreach(st_table *tab, st_foreach_check_callback_func *func, st_updat
+           case ST_STOP:
+             return 0;
+           case ST_DELETE: {
++            /* Fil-C retirement may have cleared this entry during the callback.
++             * Keep the key saved before calling it. */
++#ifndef __FILC__
+             st_data_t key = curr_entry_ptr->key;
++#endif
+ 
+               again:
+             if (packed_p) {
+@@ -2517,6 +2538,9 @@ set_table_size(const struct set_table *tbl)
+ void
+ set_table_clear(set_table *tab)
+ {
++#ifdef __FILC__
++    zmemset(tab->entries, 0, tab->entries_bound * sizeof(set_table_entry));
++#endif
+     set_make_tab_empty(tab);
+     tab->rebuilds_num++;
+ }
+@@ -2620,6 +2644,10 @@ set_rebuild_table_with(set_table *const new_tab, set_table *const tab)
+     }
+ 
+     assert(new_tab->num_entries == tab->num_entries);
++#ifdef __FILC__
++    if (new_tab == tab)
++        zmemset(new_entries + ni, 0, (bound - ni) * sizeof(set_table_entry));
++#endif
+ }
+ 
+ static void
+@@ -3121,7 +3149,9 @@ set_general_foreach(set_table *tab, set_foreach_check_callback_func *func,
+           case ST_STOP:
+             return 0;
+           case ST_DELETE: {
++#ifndef __FILC__
+             st_data_t key = curr_entry_ptr->key;
++#endif
+ 
+               again:
+             if (packed_p) {
