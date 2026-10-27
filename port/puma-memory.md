@@ -156,6 +156,20 @@ Receipts: `ta/registry-corrected-*`, `ta/registry-checked-*`, `ta/registry-runti
 
 A separate lifetime issue remains: clearing a 100-element array leaves 32 marker objects reachable in both the baseline and registry candidate; explicitly filling it with nil before clearing leaves two. Stock retains zero in either case. The array's unused capacity still contains references visible to Fil-C. This has not been fixed by changing the object registry. Receipt: `ta/array-clear-lifetime.log`.
 
+## Longer matched soak
+
+The unchanged cache-chunks plus RELR build, without either newer candidate, completed 4,010,000 checked requests in 4,388.76 seconds. Stock completed the same count in 2,702.95 seconds. Neither run added a cgroup OOM event or kill.
+
+| Metric, KiB | Stock GCC Ruby | Fil-C |
+|---|---:|---:|
+| Median RSS | 66,396 | 276,660 |
+| Sampled peak RSS | 86,068 | 359,416 |
+| Diagnostic post-GC RSS | 75,316 | 165,832 |
+
+Fil-C's idle RSS settles around 214-217 MiB after the initial portion of the run; the growth screen is -17.8%. Stock grows substantially and fails its screen at +61.5%, despite ending with the same 30,768 live Ruby objects as the short controls. Allocator retention and native buffers need separate investigation; this observation alone does not identify a leak. The memory comparison still fails at 4.167x median and 4.176x peak. Do not mix this longer stock baseline with a newer candidate's short-run result. Finite stability here does not establish general leak freedom.
+
+Receipts: `ta/puma-memory-hour-*`, including hashes, raw samples, mappings, cgroup events and comparison status.
+
 ## Upstream GC accounting proposal
 
 `probes/c/mmap-gc-pressure.c` isolates the sparse-reservation problem without Ruby. It allocates and immediately frees about 195 MiB of small objects. With no reserved mapping, three runs peak at 16,236-84,760 KiB and complete 8-180 automatic cycles. Keeping a 384 MiB mapping alive while touching one byte produces 217,648-223,124 KiB peaks and only 0-1 automatic cycles. The starting peaks remain below 18 MiB.
