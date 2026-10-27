@@ -32,9 +32,17 @@ The clean ARM64 build completed successfully. It rebuilt Ruby and libyaml agains
 
 Local receipts: `ta/build-ruby-4.0.9-filc-0.687{,-attempt2}.*`, `ta/test-ruby-4.0.9-filc-0.687.*`, and `ta/lint-*-version-before.*`. The before-lint runs reject 4.0.7 and 0.686 rather than treating those old pins as current.
 
-The full unprivileged sequence runs separately in `ruby-filc-validation-4.0.9-0.687`. Bootstrap completed with 1 failure in 2,044 tests (status 2): the GC-stress/fork case `[ruby-dev:32404]` timed out after 180 seconds. A timeout of this case was previously observed on 4.0.7 as well; this does not establish a new 0.687-specific regression. Test-all/spec/C-API continue after the failure. The driver retains the normal exclusion directory, explicitly enables normally excluded leak-test names, disables retries and records each suite's status. No full-suite success is claimed.
+The original baseline's full unprivileged sequence completed in `ruby-filc-validation-4.0.9-0.687`. Bootstrap had 1 failure in 2,044 tests (status 2): the GC-stress/fork case `[ruby-dev:32404]` timed out after 180 seconds. This timeout was also observed on 4.0.7. Test-all, including normally excluded leak-test names, completed 32,449 tests and 7,217,450 assertions with 34 failures, 17 errors and 243 skips. Specs completed 33,769 examples with 1 failure and 10 errors. The separate C-API specs passed 1,577 examples and 2,732 expectations. Cgroup counters increased from zero to 8 OOM events and 1 OOM kill. The driver retained the normal exclusion directory, disabled retries and recorded each suite's status. No full-suite success is claimed, and these are not results for the later cache optimization.
 
-## Confirmed remaining failure
+## Subsequent shape-cache memory change
+
+The consolidated export now includes the isolated shape-cache allocation improvement at source ref `filc-ruby-4.0.9-shape-chunks` (`1a83325`). It adds only `shape.c` to the original baseline, not the separate VM-stack or forwarding candidates. The export is 143 files, +2,851/-1,197, with SHA-256 `926e4388a264f9c9d608371ff18bf9c7d18bb8c499203455ed36f2877125cb6a`. The original export identities above remain historical receipts.
+
+The same change on the development branch is `b0ad29c`. Normal and VM-check builds each pass all 2,044 bootstrap tests. The existing standalone port regressions pass, as do 177 focused class/object/variable/Ractor tests with 14,390 assertions. The normal build omits the debug-only `RubyVM::Shape` tests. A full checked runtime runs 70 such tests with 401 assertions, zero failures and three unsupported `GC.auto_compact=` errors; rebuilding without the cache change reproduces exactly those same three errors. The new system probe exercises more than 380,000 cache nodes, multiple chunk boundaries, copies/removals, GC and concurrent Ractor construction on stock, normal and checked builds.
+
+The cache change substantially reduces Puma memory but does not meet the 5% target or establish full-port acceptance. See [the memory report](puma-memory.md) for the measured workload, clean-build validation and remaining footprint gap.
+
+## Confirmed remaining failure in the original baseline
 
 `probes/ruby/tail-forward-minimal.rb` still fails on the new versions. A separately built, unmodified GCC Ruby 4.0.9 control uses `/lib/ld-linux-aarch64.so.1`, not Fil-C. Its `plain` mode returns 42 and exits 0; `tail` segfaults with exit 139. The new Fil-C image returns 42 in `plain`, but rejects an out-of-bounds source read in `vm_adjust_stack_forwarding`/`memmove` in `tail`, exit 133.
 

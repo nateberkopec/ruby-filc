@@ -1,6 +1,6 @@
 # Ruby 4.0.9 built with Fil-C 0.687
 
-An experimental Docker base image using glibc, not musl. The port has been rebased onto verified Ruby 4.0.9 sources. A fresh ARM64 build and the runtime/native-extension/cache/concurrency system checks pass for this version pair. Full-suite validation is running separately; the complete Ruby suites have not passed on the port. See [the upgrade record](../port/ruby-4.0.9-upgrade.md) for exact artifacts and results.
+An experimental Docker base image using glibc, not musl. The port has been rebased onto verified Ruby 4.0.9 sources. A fresh ARM64 build and the runtime/native-extension/cache/concurrency system checks pass for this version pair. The original 4.0.9 baseline's full suites completed with failures; the complete Ruby suites have not passed on the port. See [the upgrade record](../port/ruby-4.0.9-upgrade.md) for exact artifacts and results.
 
 ## Build and run
 
@@ -18,7 +18,7 @@ mise run test
 
 `mise run build` downloads the matching optfil archive if missing, then builds both the build-stage and runtime images. Docker verifies the compiler, libyaml and Ruby checksums before using them. Archives remain in the ignored `example/dist/` directory.
 
-The build uses pristine Ruby 4.0.9 plus `ruby-4.0.9-filc.patch`, not an existing Ruby executable. It preserves the previously accepted port changes through the historical `78e4bb7` checkpoint while retaining Ruby 4.0.9's upstream fixes. The separate VM-stack-retirement candidate is not included.
+The build uses pristine Ruby 4.0.9 plus `ruby-4.0.9-filc.patch`, not an existing Ruby executable. It preserves the previously accepted port changes through the historical `78e4bb7` checkpoint and Ruby 4.0.9's upstream fixes, plus the Fil-C shape-cache allocation improvement. The separate VM-stack-retirement and forwarding candidates are not included.
 
 | Artifact | SHA-256 |
 |---|---|
@@ -56,7 +56,7 @@ docker build -f Dockerfile.app -t ruby-filc-app:4.0.9 .
 docker run --rm -p 127.0.0.1:9292:9292 ruby-filc-app:4.0.9
 ```
 
-The response at `http://localhost:9292/` reports the running Ruby version and compiler. The prior nio4r/Puma work is documented in [port/native-gems/README.md](../port/native-gems/README.md); it must be rerun with fresh native gems for this toolchain. The nio4r patch is not automatically applied by ordinary `bundle install`.
+The response at `http://localhost:9292/` reports the running Ruby version and compiler. The nio4r patch and gem preparation are documented in [port/native-gems/README.md](../port/native-gems/README.md). Fresh Puma 8.0.2/nio4r 2.7.5 builds now run the checked HTTP memory workload on Ruby 4.0.9, but the 5% memory target is not met; see [the memory comparison](../port/puma-memory.md). The nio4r patch is not automatically applied by ordinary `bundle install`.
 
 ## Checks and limitations
 

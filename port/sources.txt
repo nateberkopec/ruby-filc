@@ -107,6 +107,7 @@ regint.h
 ruby.c
 rubyparser.h
 set.c
+shape.c
 shape.h
 signal.c
 spec/ruby/optional/capi/ext/class_spec.c

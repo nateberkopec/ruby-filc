@@ -23,3 +23,7 @@ Logs are in `../../ta/nio4r-install-fixed.log`, `../../ta/nio4r-runtime.log`, `.
 The same patched source gem and Puma were compiled from scratch inside the current `ruby-filc:4.0.7-78e4bb7` Docker image. All three nio4r backends and the 100-request concurrent/forced-GC Puma probe pass: `../../ta/image-runtime-78e4bb7.log`, combined status 0. The image uses `/usr/local/bundle` as GEM_HOME. Earlier image results remain in `../../ta/image-runtime-70c5604.log` and `../../ta/puma-image-4.0.7.log`. These images use released optfil 0.686. The separate coherent source-built toolchain now also compiles both gems into a fresh gem directory and passes the same probes: `../../ta/current-toolchain-runtime.log`, status 0. It retains only its own installation's bundled gems alongside the new builds. This is still probe coverage, not the full gem suites, Rails, TLS/cluster or long-running validation; that Ruby's full test-all run still has an OOM kill.
 
 This does not establish full Rails application compatibility, clustered Puma behavior, TLS behavior, or long-running leak freedom.
+
+## Ruby 4.0.9 follow-up
+
+Fresh nio4r 2.7.5 and Puma 8.0.2 native builds pass these probes in the clean Fil-C 0.687 image with the shape-cache improvement. A separately built, unmodified GCC Ruby 4.0.9 control uses the same gem sources and its own native extension binaries. The checked order-processing HTTP workload and RSS comparison are documented in [puma-memory.md](../puma-memory.md). The requested 5% memory target is still unmet; these results do not establish leak freedom.

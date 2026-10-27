@@ -28,7 +28,7 @@ mise run test
 docker run --rm -it ruby-filc:4.0.9
 ```
 
-The clean Ruby 4.0.9 / Fil-C 0.687 ARM64 build and runtime system checks pass. Complete-suite validation is running separately; see [the upgrade record](port/ruby-4.0.9-upgrade.md). The Dockerfile also selects an amd64 compiler archive, but that path is unverified. See [example/README.md](example/README.md) for the application example, smoke checks, native-extension requirements, and libc audit.
+The clean Ruby 4.0.9 / Fil-C 0.687 ARM64 build and runtime system checks pass. The original 4.0.9 baseline's complete suites finished with failures; see [the upgrade record](port/ruby-4.0.9-upgrade.md). The Dockerfile also selects an amd64 compiler archive, but that path is unverified. See [example/README.md](example/README.md) for the application example, smoke checks, native-extension requirements, and libc audit.
 
 Native libraries and extensions must be compiled with the matching Fil-C toolchain. Ordinary system libraries and binaries built with a different Fil-C compiler/runtime are not interchangeable.
 
@@ -54,13 +54,13 @@ The VM-stack-retirement candidate remains separate. Its Ruby 4.0.7 version was r
 python3 port/prepare-source.py --candidate
 ```
 
-After making and validating source changes, `python3 port/export-current.py` regenerates both consolidated patch copies and `port/sources.txt`. It exports committed `HEAD`, or a revision selected with `--ref`. Do not silently promote an unvalidated candidate into the Docker example; the current baseline is `filc-ruby-4.0.9-baseline`.
+After making and validating source changes, `python3 port/export-current.py` regenerates both consolidated patch copies and `port/sources.txt`. It exports committed `HEAD`, or a revision selected with `--ref`. Do not silently promote unvalidated candidates into the Docker example. In the recovered worktree, use `--ref filc-ruby-4.0.9-shape-chunks` to export the isolated cache improvement without the separate VM-stack/forwarding changes.
 
 The older scripts under `port/` document the investigation and often assume a Linux container with this directory mounted at `/work`, a matching toolchain under `/compiler`, and path records under `ta/`. They are not all standalone setup commands. [port/STATUS.md](port/STATUS.md) records those assumptions and unresolved work.
 
 ## Current status
 
-The Docker example now targets Ruby 4.0.9 with the latest stable Fil-C release, 0.687. The 142-file port applies without conflicts; upstream class-variable-cache and extension-unloading fixes are preserved. Its clean ARM64 build and runtime/cache/concurrency system checks pass. Full-suite validation is running separately. The consolidated patch still excludes the VM-stack candidate.
+The Docker example targets Ruby 4.0.9 with Fil-C 0.687. The 143-file port preserves upstream class-variable-cache and extension-unloading fixes. The consolidated patch includes the Fil-C shape-cache allocation improvement, but still excludes the separate VM-stack and forwarding candidates. Complete Ruby compatibility and the requested memory target remain unmet.
 
 The older recovered development installation uses Ruby 4.0.7, Fil-C source revision `9d1ed206e0ccfc1ec114471386befeba643a5f86` and the VM-stack candidate. The identical printed Fil-C version does not establish ABI compatibility between these toolchains.
 
@@ -76,6 +76,12 @@ The VM-stack candidate passed 2,044 bootstrap tests and 50 standalone regression
 Fresh recovery checks reproduce the exact port and candidate hashes, reconstruct an identical complete Ruby source tree, and pass all nine retirement scenarios on the recovered normal and checked binaries. A combined forwarding/tail-call probe still traps on both baseline and candidate Fil-C; the host stock Ruby 4.0.5 control also fails, with an argument error. A fresh, unmodified stock Linux Ruby 4.0.7 build also segfaults on the minimal tail-call reproducer, while its ordinary-call control returns 42. Fresh stock 4.0.9 and Fil-C 0.687 controls reproduce the same failure, with exits 139 and 133 respectively; their ordinary-call controls both return 42. A fix remains pending. These results do not establish full compatibility.
 
 Remaining gaps include memory pressure/OOM, GC APIs and events, signal/crash reporting, private file-backed buffer growth, OpenSSL secure allocation and export auditing, and broader native-gem/application coverage. Rails, clustered/TLS Puma, long-running workloads, and amd64 are not yet validated. Continuations, moving compaction, M:N scheduling, and JIT support are unfinished.
+
+## Puma memory target
+
+A checked order-processing Puma workload and matched GCC Ruby 4.0.9 control now measure the Ruby process's RSS, PSS and USS independently of the load client. The Fil-C shape-ancestor cache allocates chunks on demand instead of reserving 384 MiB up front, which inflated the native collector's live-memory accounting. In the controlled development-build comparison this reduced median RSS by 59% and peak RSS by 60%.
+
+**The port is still far above stock Ruby's memory use.** In a 70,000-request run, the clean exported runtime used 322 MiB median RSS versus 33 MiB for stock. Neither these measurements nor the focused retention checks prove general leak freedom. The benchmark preserves the 105% acceptance limit and fails it; see [Puma memory measurements and reproduction](port/puma-memory.md).
 
 ## Recovery and provenance
 

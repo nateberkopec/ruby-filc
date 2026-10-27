@@ -7,6 +7,7 @@ For the normal Docker build, start with [example/README.md](../example/README.md
 - `prepare-source.py`: verify and unpack Ruby 4.0.9, initialize a local source repository, and apply the consolidated patch. `--candidate` also applies the reviewed VM-stack patch. Refuses to overwrite an existing directory.
 - `export-current.py`: export a committed local source revision against its pristine tag into both tracked consolidated patch copies; `--ref` selects the revision. Generated VM/parser files are excluded. Running this on an experimental branch changes what the Docker example builds.
 - `sources.txt`: source paths in the consolidated patch.
+- `shape-cache-chunks-ruby-4.0.9.patch`: isolated Fil-C ancestor-cache allocation improvement, also included in the consolidated patch. It does not include the separate VM-stack/forwarding candidates.
 - `vm-stack-clear-ruby-4.0.9.patch`: the incremental VM-stack candidate rebased onto Ruby 4.0.9; fresh validation remains required. `vm-stack-clear-revised.patch` is the reviewed 4.0.7 version. `vm-stack-clear-candidate.patch` records the rejected first version.
 
 ## Build and validation runners
@@ -24,6 +25,8 @@ For the normal Docker build, start with [example/README.md](../example/README.md
 | `validate-vm-stack-miniruby.sh`, `validate-vm-stack-full.sh` | Candidate checks in the dedicated development builds |
 | `build-current-port-toolchain.sh`, `build-current-toolchain-dependencies.sh`, `finish-current-toolchain-ruby.sh` | Historical source-built compiler/dependency/Ruby workflow |
 | `profile-process-memory.py`, `summarize-process-memory.py` | Process/cgroup measurements and summaries |
+| `build-stock-runtime.sh` | Verified, unmodified shared Ruby with GCC for the Puma control |
+| `benchmark-puma-memory.sh`, `measure-puma-memory.py`, `compare-puma-memory.py` | Checked Puma workload, separate-process memory sampling and the unchanged 105% RSS gate |
 
 Most Linux runners expect this repository mounted at `/work`, an appropriate compiler under `/compiler`, and build-path records in `/work/ta`. Do not point a runner at a different compiler or installation merely because the printed version matches. The old stopped containers still reference the lost temporary workspace; the recovered development container is separate.
 
@@ -31,7 +34,8 @@ Most Linux runners expect this repository mounted at `/work`, an appropriate com
 
 ## Notes and artifacts
 
-- [ruby-4.0.9-upgrade.md](ruby-4.0.9-upgrade.md): current source/toolchain identities, fresh checks and remaining failures.
+- [ruby-4.0.9-upgrade.md](ruby-4.0.9-upgrade.md): source/toolchain identities, fresh checks and remaining failures.
+- [puma-memory.md](puma-memory.md): memory target, reproducible workload, cache fix and remaining footprint gap.
 
 - [STATUS.md](STATUS.md): pre-recovery history and remaining compatibility gaps.
 - [release-4.0.7-history.md](release-4.0.7-history.md): prior image results, retained without relabeling them as 4.0.9 validation.
