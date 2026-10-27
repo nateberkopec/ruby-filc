@@ -24,7 +24,7 @@ docker run --rm --memory=8g --memory-swap=8g \
 | `allocation-pressure.rb`, `class-retention*.rb`, `struct-retention.rb`, `weakmap-gc-phases.rb` | Allocation/lifetime measurements, not broad correctness verdicts |
 | `nio4r.rb`, `puma.rb` | Native-gem probes; first build matching native extensions as described in `port/native-gems/README.md` |
 | `puma-memory-app.rb` | Order-processing HTTP app driven and measured by `port/benchmark-puma-memory.sh`; the 5% RSS target is still unmet |
-| `shape-cache-chunks.rb` | Cache chunk boundaries, ivar lookup/copy/removal, GC and concurrent Ractor construction |
+| `shape-cache-chunks.rb` | Shape/cache chunk boundaries, ivar lookup/copy/removal, GC and concurrent Ractor construction; `--dump-shapes` also verifies complete, consecutive IDs through ObjectSpace |
 | `fiddle.rb`, `ioctl.rb`, `timezone.rb`, `scheduler-stress.rb` | Focused runtime integration checks |
 
 The release-image regression runner is `example/regressions.sh`. The candidate retirement matrix is `port/check-vm-stack-retirement.sh`, which accepts a Ruby executable and an output prefix. Runners under `port/` may assume the development container's `/work` and `/compiler` layout.

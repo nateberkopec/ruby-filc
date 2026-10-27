@@ -1,3 +1,9 @@
+dump_shapes = ARGV.delete('--dump-shapes')
+if dump_shapes
+  require 'objspace'
+  require 'json'
+end
+
 objects = Array.new(128) do |index|
   klass = Class.new
   names = Array.new(48) { |field| "@cache_chunk_#{index}_#{field}" }
@@ -8,6 +14,7 @@ objects = Array.new(128) do |index|
 end
 
 raise 'did not exercise multiple cache chunks' unless RubyVM.stat(:shape_cache_size) > 8192
+raise 'did not exercise multiple shape chunks' unless RubyVM.stat(:next_shape_id) > 4096
 3.times do
   GC.start(full_mark: true, immediate_sweep: true)
   objects.each do |object, names, expected|
@@ -22,6 +29,7 @@ raise 'did not exercise multiple cache chunks' unless RubyVM.stat(:shape_cache_s
     raise 'incorrect rebuilt shape' unless copy.checksum == expected + (0...48).sum
   end
 end
+shapes_before_workers = RubyVM.stat(:next_shape_id)
 workers = Array.new(4) do |worker|
   Ractor.new(worker) do |index|
     24.times do |iteration|
@@ -37,4 +45,11 @@ workers = Array.new(4) do |worker|
   end
 end
 raise 'concurrent shape construction failed' unless workers.map(&:value).all?
-puts "shape cache: #{RubyVM.stat(:shape_cache_size)} nodes; chunk boundaries, reads, copies, removal, Ractors and GC passed"
+raise 'concurrent workers did not cross a shape chunk' unless RubyVM.stat(:next_shape_id) > shapes_before_workers + 4096
+if dump_shapes
+  expected_count = RubyVM.stat(:next_shape_id)
+  shapes = ObjectSpace.dump_shapes(output: :string).lines.map { |line| JSON.parse(line) }
+  raise 'shape dump omitted shapes' unless shapes.size == expected_count
+  raise 'shape dump changed IDs' unless shapes.each_with_index.all? { |shape, index| shape.fetch('id') == index }
+end
+puts "shapes: #{RubyVM.stat(:next_shape_id)}; cache: #{RubyVM.stat(:shape_cache_size)} nodes; chunk boundaries, reads, copies, removal, Ractors and GC passed"

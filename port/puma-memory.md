@@ -101,6 +101,34 @@ Current build image: `sha256:c987d779f7ea4c8749d0ace963f02f62840b33b425021539e69
 
 Receipts: `ta/relr-core-build.*`, `ta/relr-runtime-checks.log`, `ta/relr-release-checks.log`, `ta/relr-bootstrap*`, `ta/relr-baseline-4g-*`, `ta/relr-*-events-*.log`, `ta/puma-memory-relr-control.*`, and `ta/puma-memory-relr-comparison/`. The final validation runner exits one because the memory acceptance comparison fails, not because its preceding runtime checks failed.
 
+## Shape-table candidate
+
+`shape-table-chunks-ruby-4.0.9.patch` is an incremental candidate on top of the current consolidated patch, not yet included in the default image. Source commit `e275504` on `filc-ruby-4.0.9-shape-table-chunks` contains only the shape-table change; the VM-stack/forwarding candidates remain excluded.
+
+The Fil-C shape table now allocates 4,096-entry chunks rather than reserving all 20 MiB at startup. Atomic publication precedes shape-ID allocation. Chunks retain stable addresses and IDs, and the maximum capacity is unchanged. Shape enumeration uses IDs rather than walking a contiguous allocation. The debug exhaustion helper materializes the skipped chunks so its existing behavior remains available. Non-Fil-C builds retain contiguous storage.
+
+Three sequential 70,000-request runs on CPUs 4-7, with 4 GiB RAM and no additional swap or GC tuning, produced:
+
+| Metric, KiB | Stock GCC Ruby | Fil-C before | Fil-C candidate |
+|---|---:|---:|---:|
+| Median RSS | 35,028 | 305,750 | 272,164 |
+| Sampled peak RSS | 37,520 | 355,688 | 346,412 |
+| Diagnostic post-GC RSS | 35,916 | 185,376 | 165,068 |
+
+The candidate lowers median RSS by 11% in this comparison, but still fails at **7.770x stock median and 9.233x stock peak**. Its idle-growth screen is -8.4%; stock's is +10.2% and fails. The final full GC is outside measurement and is not an alternative acceptance metric. These short runs do not establish leak freedom.
+
+Validation completed before candidate publication:
+
+- Normal and checked Fil-C builds each pass all 2,044 bootstrap tests, in 143.87 and 208.07 seconds. The checked build starts from the verified release archive plus the current consolidated and incremental patches.
+- The normal class/object/variable/Ractor selection passes 177 tests and 14,371 assertions. The checked shape suite has 70 tests, 401 assertions, zero failures and the same three unsupported `GC.auto_compact=` errors identified in the previous cache-change investigation.
+- A GCC build of otherwise pristine Ruby with the changed shape sources passes all 2,044 bootstrap tests and the shape-chunk probe. It is a branch-compatibility check, not the unmodified stock memory control.
+- The system probe exercises about 48,000 shapes and more than 380,000 cache nodes, including concurrent chunk crossings. Its optional `--dump-shapes` mode checks that `ObjectSpace.dump_shapes` preserves every consecutive ID; the release-image runner now enables this mode. The existing `test_dump_shapes` also passes, with 264 assertions.
+- Runtime integration and fresh native-gem checks pass on the candidate installation. A fresh default-image build incorporating this candidate remains a separate promotion step.
+
+A diagnostic run before this candidate captured native heap graphs near 10,000, 100,000 and 250,000 requests. After explicit collections and synchronous scavenging, ordinary reachable payload was approximately 39-41 MiB, with 38-39 MiB of associated pointer storage. These are logical allocation sizes, not RSS, and exclude full accounting for special runtime objects. The 20 MiB shape reservation had companion pointer storage; multiple 1 MiB stack-sized allocations and weak-reference objects also remained. This supports investigating allocation representation rather than assuming that the application retains eight times as many Ruby objects. The diagnostic driver's final statistics failed because its 0.1-second idle periods sometimes contained no samples; its snapshots are diagnostic evidence, not a successful acceptance run.
+
+Receipts: `ta/shape-table-*`, `ta/puma-memory-shape-table-*`, and `ta/puma-native-base-*`. The unchanged packed build's longer soak is still separate from this candidate's short comparison.
+
 ## Upstream GC accounting proposal
 
 `probes/c/mmap-gc-pressure.c` isolates the sparse-reservation problem without Ruby. It allocates and immediately frees about 195 MiB of small objects. With no reserved mapping, three runs peak at 16,236-84,760 KiB and complete 8-180 automatic cycles. Keeping a 384 MiB mapping alive while touching one byte produces 217,648-223,124 KiB peaks and only 0-1 automatic cycles. The starting peaks remain below 18 MiB.

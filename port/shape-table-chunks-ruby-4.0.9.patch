@@ -1,0 +1,186 @@
+diff --git a/shape.c b/shape.c
+index 1a2e690..4533471 100644
+--- a/shape.c
++++ b/shape.c
+@@ -329,13 +329,12 @@ rb_shape_get_root_shape(void)
+ static void
+ shape_tree_mark_and_move(void *data)
+ {
+-    rb_shape_t *cursor = rb_shape_get_root_shape();
+-    rb_shape_t *end = RSHAPE(rb_shape_tree.next_shape_id - 1);
+-    while (cursor <= end) {
+-        if (cursor->edges && !SINGLE_CHILD_P(cursor->edges)) {
+-            rb_gc_mark_and_move(&cursor->edges);
++    shape_id_t count = rb_shapes_count();
++    for (shape_id_t id = 0; id < count; id++) {
++        rb_shape_t *shape = RSHAPE(id);
++        if (shape->edges && !SINGLE_CHILD_P(shape->edges)) {
++            rb_gc_mark_and_move(&shape->edges);
+         }
+-        cursor++;
+     }
+ }
+ 
+@@ -365,14 +364,18 @@ static inline shape_id_t
+ raw_shape_id(rb_shape_t *shape)
+ {
+     RUBY_ASSERT(shape);
++#ifdef __FILC__
++    struct rb_shape_chunk *chunk = (struct rb_shape_chunk *)zgetlower(shape);
++    return chunk->first_id + (shape_id_t)(shape - chunk->shapes);
++#else
+     return (shape_id_t)(shape - rb_shape_tree.shape_list);
++#endif
+ }
+ 
+ static inline shape_id_t
+ shape_id(rb_shape_t *shape, shape_id_t previous_shape_id)
+ {
+-    RUBY_ASSERT(shape);
+-    shape_id_t raw_id = (shape_id_t)(shape - rb_shape_tree.shape_list);
++    shape_id_t raw_id = raw_shape_id(shape);
+     return raw_id | (previous_shape_id & SHAPE_ID_FLAGS_MASK);
+ }
+ 
+@@ -387,12 +390,9 @@ shape_frozen_p(shape_id_t shape_id)
+ void
+ rb_shape_each_shape_id(each_shape_callback callback, void *data)
+ {
+-    rb_shape_t *start = rb_shape_get_root_shape();
+-    rb_shape_t *cursor = start;
+-    rb_shape_t *end = RSHAPE(rb_shapes_count());
+-    while (cursor < end) {
+-        callback((shape_id_t)(cursor - start), data);
+-        cursor += 1;
++    shape_id_t count = rb_shapes_count();
++    for (shape_id_t id = 0; id < count; id++) {
++        callback(id, data);
+     }
+ }
+ 
+@@ -427,20 +427,49 @@ rb_shape_depth(shape_id_t shape_id)
+     return depth;
+ }
+ 
++#ifdef __FILC__
++static struct rb_shape_chunk *
++shape_chunk_get_or_create(shape_id_t index)
++{
++    struct rb_shape_chunk *chunk = RUBY_ATOMIC_PTR_LOAD(rb_shape_tree.shape_chunks[index]);
++    if (!chunk) {
++        chunk = calloc(1, sizeof(*chunk));
++        if (!chunk) rb_memerror();
++        chunk->first_id = index * SHAPE_CHUNK_SIZE;
++        struct rb_shape_chunk *existing = RUBY_ATOMIC_PTR_CAS(rb_shape_tree.shape_chunks[index], NULL, chunk);
++        if (existing) {
++            free(chunk);
++            chunk = existing;
++        }
++    }
++    return chunk;
++}
++#endif
++
+ static rb_shape_t *
+ shape_alloc(void)
+ {
+     shape_id_t current, new_id;
++#ifdef __FILC__
++    struct rb_shape_chunk *chunk;
++#endif
+ 
+     do {
+         current = RUBY_ATOMIC_LOAD(rb_shape_tree.next_shape_id);
+         if (current > MAX_SHAPE_ID) {
+             return NULL;  // Out of shapes
+         }
++#ifdef __FILC__
++        chunk = shape_chunk_get_or_create(current / SHAPE_CHUNK_SIZE);
++#endif
+         new_id = current + 1;
+     } while (current != RUBY_ATOMIC_CAS(rb_shape_tree.next_shape_id, current, new_id));
+ 
++#ifdef __FILC__
++    return &chunk->shapes[current % SHAPE_CHUNK_SIZE];
++#else
+     return &rb_shape_tree.shape_list[current];
++#endif
+ }
+ 
+ static rb_shape_t *
+@@ -1495,7 +1524,13 @@ rb_shape_exhaust(int argc, VALUE *argv, VALUE self)
+ {
+     rb_check_arity(argc, 0, 1);
+     int offset = argc == 1 ? NUM2INT(argv[0]) : 0;
+-    RUBY_ATOMIC_SET(rb_shape_tree.next_shape_id, MAX_SHAPE_ID - offset + 1);
++    shape_id_t next_shape_id = MAX_SHAPE_ID - offset + 1;
++#ifdef __FILC__
++    for (shape_id_t id = 0; id < next_shape_id && id < SHAPE_BUFFER_SIZE; id += SHAPE_CHUNK_SIZE) {
++        shape_chunk_get_or_create(id / SHAPE_CHUNK_SIZE);
++    }
++#endif
++    RUBY_ATOMIC_SET(rb_shape_tree.next_shape_id, next_shape_id);
+     return Qnil;
+ }
+ 
+@@ -1578,6 +1613,7 @@ Init_default_shapes(void)
+     }
+     rb_shape_tree.capacities = capacities;
+ 
++#ifndef __FILC__
+ #ifdef HAVE_MMAP
+     size_t shape_list_mmap_size = rb_size_mul_or_raise(SHAPE_BUFFER_SIZE, sizeof(rb_shape_t), rb_eRuntimeError);
+     rb_shape_tree.shape_list = (rb_shape_t *)mmap(NULL, shape_list_mmap_size,
+@@ -1595,6 +1631,7 @@ Init_default_shapes(void)
+     if (!rb_shape_tree.shape_list) {
+         rb_memerror();
+     }
++#endif
+ 
+     id_object_id = rb_make_internal_id();
+ 
+diff --git a/shape.h b/shape.h
+index dd70c9c..d503983 100644
+--- a/shape.h
++++ b/shape.h
+@@ -88,6 +88,14 @@ struct rb_shape {
+ 
+ typedef struct rb_shape rb_shape_t;
+ 
++#ifdef __FILC__
++#define SHAPE_CHUNK_SIZE 4096
++struct rb_shape_chunk {
++    shape_id_t first_id;
++    rb_shape_t shapes[SHAPE_CHUNK_SIZE];
++};
++#endif
++
+ struct redblack_node {
+     ID key;
+     rb_shape_t *value;
+@@ -111,7 +119,11 @@ enum shape_flags {
+ 
+ typedef struct {
+     /* object shapes */
++#ifdef __FILC__
++    struct rb_shape_chunk *shape_chunks[SHAPE_BUFFER_SIZE / SHAPE_CHUNK_SIZE];
++#else
+     rb_shape_t *shape_list;
++#endif
+     rb_shape_t *root_shape;
+     const attr_index_t *capacities;
+     rb_atomic_t next_shape_id;
+@@ -207,7 +219,13 @@ RSHAPE(shape_id_t shape_id)
+     uint32_t offset = (shape_id & SHAPE_ID_OFFSET_MASK);
+     RUBY_ASSERT(offset != INVALID_SHAPE_ID);
+ 
++#ifdef __FILC__
++    struct rb_shape_chunk *chunk = RUBY_ATOMIC_PTR_LOAD(rb_shape_tree.shape_chunks[offset / SHAPE_CHUNK_SIZE]);
++    RUBY_ASSERT(chunk);
++    return &chunk->shapes[offset % SHAPE_CHUNK_SIZE];
++#else
+     return &rb_shape_tree.shape_list[offset];
++#endif
+ }
+ 
+ int32_t rb_shape_id_offset(void);

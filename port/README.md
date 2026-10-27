@@ -8,6 +8,7 @@ For the normal Docker build, start with [example/README.md](../example/README.md
 - `export-current.py`: export a committed local source revision against its pristine tag into both tracked consolidated patch copies; `--ref` selects the revision. Generated VM/parser files are excluded. Running this on an experimental branch changes what the Docker example builds.
 - `sources.txt`: source paths in the consolidated patch.
 - `shape-cache-chunks-ruby-4.0.9.patch`: isolated Fil-C ancestor-cache allocation improvement, also included in the consolidated patch. It does not include the separate VM-stack/forwarding candidates.
+- `shape-table-chunks-ruby-4.0.9.patch`: incremental Fil-C shape-table candidate on top of the current consolidated patch. Preserves capacity and stable IDs/addresses; not yet part of the default image. Validation and the still-failing memory gate are recorded in [puma-memory.md](puma-memory.md).
 - `vm-stack-clear-ruby-4.0.9.patch`: the incremental VM-stack candidate rebased onto Ruby 4.0.9; fresh validation remains required. `vm-stack-clear-revised.patch` is the reviewed 4.0.7 version. `vm-stack-clear-candidate.patch` records the rejected first version.
 
 ## Build and validation runners
