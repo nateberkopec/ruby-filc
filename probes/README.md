@@ -23,8 +23,10 @@ docker run --rm --memory=8g --memory-swap=8g \
 | `ractor-port-pressure.rb`, `ractor-port-phases.rb`, `ractor-select.rb` | Ractor behavior and memory pressure; port pressure has exceeded the 8 GiB limit |
 | `allocation-pressure.rb`, `class-retention*.rb`, `struct-retention.rb`, `weakmap-gc-phases.rb` | Allocation/lifetime measurements, not broad correctness verdicts |
 | `nio4r.rb`, `puma.rb` | Native-gem probes; first build matching native extensions as described in `port/native-gems/README.md` |
-| `puma-memory-app.rb` | Order-processing HTTP app driven and measured by `port/benchmark-puma-memory.sh`; the 5% RSS target is still unmet |
-| `array-clear-lifetime.rb` | Checks removed-object collection, sharing, instance variables and reuse after Array#clear; requires the isolated array-clear candidate and intentionally fails on the default Fil-C build |
+| `puma-memory-app.rb` | Order-processing HTTP app driven and measured by `port/benchmark-puma-memory.sh`; the memory, throughput and latency targets are still unmet |
+| `puma-order-hotpaths.rb` | Checked parse/transform/digest/generate diagnostics without HTTP; accepts iteration count and phase (`all` by default), and is not an acceptance benchmark |
+| `array-clear-lifetime.rb` | Checks removed-object collection, sharing, instance variables and reuse after Array#clear; requires an array-retirement candidate and intentionally fails on the default Fil-C build |
+| `array-shrink-lifetime.rb` | Checks removed and surviving objects across six shrinking operations and four storage histories; requires `port/array-shrink-ruby-4.0.9.patch`, which also covers clear and replaces (not stacks on) the earlier clear-only candidate |
 | `object-registry-lifetime.rb` | Compares unrelated-object retention with and without a suspended ObjectSpace enumerator; catches whole-heap retention by a strong iterator snapshot |
 | `shape-cache-chunks.rb` | Shape/cache chunk boundaries, ivar lookup/copy/removal, GC and concurrent Ractor construction; `--dump-shapes` also verifies complete, consecutive IDs through ObjectSpace |
 | `fiddle.rb`, `ioctl.rb`, `timezone.rb`, `scheduler-stress.rb` | Focused runtime integration checks |

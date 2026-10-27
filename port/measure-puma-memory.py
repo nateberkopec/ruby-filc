@@ -265,7 +265,7 @@ def main():
         'server_cpu_seconds': sum(load['server_cpu_seconds'] for load in loads),
         'rounds': loads,
     }
-    result = {'schema_version': 2, 'config': {**vars(args), 'output': str(args.output)}, 'identity': identity,
+    result = {'schema_version': 3, 'config': {**vars(args), 'output': str(args.output)}, 'identity': identity,
               'metrics': metrics, 'gc': gc, 'requests_checked': args.requests * (args.rounds + args.warmup_rounds),
               'elapsed': time.monotonic() - started}
     args.output.write_text(json.dumps(result, indent=2) + '\n')

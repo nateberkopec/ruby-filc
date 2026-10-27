@@ -18,7 +18,7 @@ The default warmup is five batches of 1,000 requests. Ten measured batches follo
 
 The comparison also screens for growth: the median idle RSS in the last three rounds minus the median in the first three must not exceed 5% of the measured median. This is conservative: allocator warmup can fail it even on stock Ruby. A failure is not by itself proof of a leak, and a pass cannot prove leak freedom beyond the tested workload and duration.
 
-Results include interpreter/shared-library and driver/workload hashes, server/client CPU affinity, cgroup memory/swap/CPU limits, Python and server versions, relevant GC environment settings, raw samples, server output and final mappings. The comparator rejects mismatched controls and older result files without current performance evidence. Both server shutdown and every HTTP response must succeed. Missing samples, sampler errors and workload failures are not converted into successful measurements.
+Results include interpreter/shared-library and driver/workload hashes, server/client CPU affinity, cgroup memory/swap/CPU limits, Python and server versions, relevant GC environment settings, raw samples, server output and final mappings. The comparator rejects mismatched controls and older result files without current performance evidence. Schema 3 records and compares Ruby version, engine, patchlevel and platform explicitly. The full Ruby description remains provenance, not an equality gate: a patched Git worktree legitimately reports a different revision/date from a release archive. Schema 2 receipts must be rerun, not rewritten to synthesize those fields. `mise run test:puma-comparison` checks this distinction and the independent numeric gates. Both server shutdown and every HTTP response must succeed. Missing samples, sampler errors and workload failures are not converted into successful measurements.
 
 ## Run in a prepared Linux container
 
@@ -211,6 +211,33 @@ The unchanged cache-chunks plus RELR build, without either newer candidate, comp
 Fil-C's idle RSS settles around 214-217 MiB after the initial portion of the run; the growth screen is -17.8%. Stock grows substantially and fails its screen at +61.5%, despite ending with the same 30,768 live Ruby objects as the short controls. Allocator retention and native buffers need separate investigation; this observation alone does not identify a leak. The memory comparison still fails at 4.167x median and 4.176x peak. Do not mix this longer stock baseline with a newer candidate's short-run result. Finite stability here does not establish general leak freedom.
 
 Receipts: `ta/puma-memory-hour-*`, including hashes, raw samples, mappings, cgroup events and comparison status.
+
+## Fresh amd64 build and broader array-retirement candidate
+
+On the Debian 13 amd64 host, fresh Ruby 4.0.9 builds use GCC 14 and the checksum-verified optfil 0.687 archive. Both disable JITs and use ucontext. Fil-C uses the current consolidated patch and packed interpreter/library relocations, with none of the separate shape-table, weak-map, stack or forwarding candidates. Matching nio4r/Puma native extensions were rebuilt; the patched nio4r gem reproduces its recorded SHA-256. Both native-gem probes pass. Stock passes all 2,044 bootstrap tests. This is a host-build validation, not validation of the default amd64 Dockerfile or the full Ruby suites.
+
+The first out-of-tree Fil-C attempt failed because quoted includes selected stale release-generated VM headers beside the source instead of regenerated headers in the build directory. An in-tree build completed. Its Git-derived Ruby description differs from stock; the first comparison rejected that difference. The schema-3 comparison above fixes the identity check without changing a numeric threshold, and both runtimes were measured afresh. The failed attempts remain recorded rather than being relabeled as passes.
+
+Each subsequent runtime checked 70,000 responses (10,000 warmup plus 60,000 measured), with 30 rounds of 2,000 requests and one-second idle intervals. All ran sequentially in the same Debian container with 4 GiB, no swap, server CPUs 0-3 and client CPUs 4-7. The container mounts the host `/usr` read-only for its native libraries/Python, the development workspace at its absolute path, and the matching toolchain at `/opt/fil`. No other builds ran during these comparisons. No application collection or scavenging occurred during measured rounds.
+
+| Metric | Stock GCC Ruby | Default Fil-C | Array-retirement candidate |
+|---|---:|---:|---:|
+| Median RSS, KiB | 36,264 | 190,064 | 189,154 |
+| Sampled peak RSS, KiB | 39,808 | 196,920 | 194,852 |
+| Load throughput, requests/s | 3,468.1 | 785.4 | 792.3 |
+| HTTP p50, ms | 1.190 | 5.836 | 5.809 |
+| HTTP p95, ms | 2.403 | 11.279 | 11.151 |
+| HTTP p99, ms | 3.891 | 14.787 | 14.649 |
+
+Every Fil-C numeric ratio still fails. Stock also fails the growth screen (+19.7%); both Fil-C growth screens pass. Maximum client CPU utilization is below 28% on stock and 7% on Fil-C. The small before/after differences are not evidence of a repeatable performance improvement or compliance with the 5% goal. Both runs check every response and shut down cleanly; these short runs do not establish sustained-run reliability or general leak freedom.
+
+`array-shrink-ruby-4.0.9.patch` is a new **isolated candidate**, applied directly after the consolidated port. It replaces rather than stacks on the earlier clear-only candidate. Two helpers retire removed elements and inactive array-object storage using Fil-C's capability-clearing `zmemset`. The patch clears embedded storage when switching to a heap representation, clears inactive storage on reset/re-embedding, and retires removed slots across shrinking paths. Shared buffers are not cleared through a non-owning array; capacity policies, object headers, private GC fields and non-Fil-C behavior are retained. Retirement work follows the number of removed slots, rather than rescanning the entire capacity after each pop.
+
+The fresh baseline fails 41 of the 48 cases in `array-shrink-lifetime.rb`; stock passes all 48. The cases cover `pop`, `shift`, `delete_at`, `select!`, `reject!` and `replace`, partial/full removal, and small, larger embedded, heap and expanded-to-heap storage histories. They check exact survivors, removed-object reclamation, instance variables and reuse after retiring the allocating thread. The candidate passes all 48 plus the five existing clear/sharing cases. Normal Fil-C passes all 2,044 bootstrap tests and the Array/Ractor selection (491 tests, 22,215 assertions, zero failures/errors, 16 skips). GCC with the candidate's `array.c` also passes all 2,044 bootstrap tests; the unmodified stock installation remains the benchmark control. An independent full checked build from the verified archive and both patches is running; the candidate is not promoted into either consolidated export.
+
+Candidate patch SHA-256: `f89aacac15b6eeb0f52a84ab649f76e41d6010fe56380a640ce10cefee9c8bd6`. Normal candidate library SHA-256: `442ba6503eeb7b1f26d1b25e3d09345755dda56c1db603fc044b10e45a2e670e`. Receipts: `ta/build-amd64-*`, `ta/check-amd64-filc.*`, `ta/bootstrap-amd64-stock-corrected.*`, `ta/array-shrink-*`, `ta/puma-amd64-baseline/`, and `ta/puma-amd64-array-shrink*`.
+
+`puma-order-hotpaths.rb` adds checked, non-HTTP diagnostics for parsing, transformation, hashing and serialization. Its optional phase argument permits separate profiles. A 20,000-iteration Fil-C diagnostic using the native sampling profiler completes and highlights interpreter dispatch, JSON work and hash/string comparisons as well as allocation. The profiler reports inclusive counts across recursive frames and threads, including waiting threads; its percentages are not exclusive CPU shares. Diagnostic results must not be substituted for HTTP throughput/latency or memory acceptance. Receipt: `ta/puma-order-filc-profile.*`.
 
 ## Upstream GC accounting proposal
 

@@ -32,7 +32,9 @@ server = Puma::Server.new(app, nil, min_threads: threads, max_threads: threads)
 server.add_tcp_listener('127.0.0.1', Integer(ARGV.fetch(0)))
 Signal.trap('TERM') { server.stop }
 STDOUT.sync = true
-puts JSON.generate(ruby: RUBY_DESCRIPTION, puma: Puma::Const::PUMA_VERSION,
+puts JSON.generate(ruby: RUBY_DESCRIPTION, ruby_version: RUBY_VERSION,
+                   ruby_engine: RUBY_ENGINE, ruby_patchlevel: RUBY_PATCHLEVEL, ruby_platform: RUBY_PLATFORM,
+                   puma: Puma::Const::PUMA_VERSION,
                    nio4r: Gem.loaded_specs.fetch('nio4r').version.to_s,
                    compiler: RbConfig::CONFIG.fetch('CC'), pid: Process.pid, threads: threads,
                    yjit: defined?(RubyVM::YJIT) ? RubyVM::YJIT.enabled? : false,

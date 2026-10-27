@@ -1,0 +1,193 @@
+diff --git a/array.c b/array.c
+index e23c4db..ef82c36 100644
+--- a/array.c
++++ b/array.c
+@@ -101,7 +101,14 @@ should_be_T_ARRAY(VALUE ary)
+     ary_verify(a); \
+ } while (0)
+ 
++#ifdef __FILC__
++#define FL_UNSET_EMBED(ary) do { \
++    if (ARY_EMBED_P(ary)) ary_clear_object_storage(ary); \
++    FL_UNSET((ary), RARRAY_EMBED_FLAG|RARRAY_EMBED_LEN_MASK); \
++} while (0)
++#else
+ #define FL_UNSET_EMBED(ary) FL_UNSET((ary), RARRAY_EMBED_FLAG|RARRAY_EMBED_LEN_MASK)
++#endif
+ #define FL_SET_SHARED(ary) do { \
+     RUBY_ASSERT(!ARY_EMBED_P(ary)); \
+     FL_SET((ary), RARRAY_SHARED_FLAG); \
+@@ -308,6 +315,28 @@ ary_mem_clear(VALUE ary, long beg, long size)
+     });
+ }
+ 
++/* Fil-C traces pointer capabilities in unused capacity and inactive union
++ * members too. Integer stores do not retire old pointer capabilities. */
++static inline void
++ary_clear_object_storage(VALUE ary)
++{
++#ifdef __FILC__
++    zmemset(&RARRAY(ary)->as, 0,
++            rb_gc_obj_slot_size(ary) - offsetof(struct RArray, as));
++#endif
++}
++
++static inline void
++ary_clear_removed(VALUE ary, long beg, long len)
++{
++#ifdef __FILC__
++    /* A shared buffer may still supply another array's live elements. */
++    if (len > 0 && !ARY_SHARED_P(ary)) {
++        RARRAY_PTR_USE(ary, ptr, zmemset(ptr + beg, 0, len * sizeof(VALUE)));
++    }
++#endif
++}
++
+ static inline void
+ memfill(register VALUE *mem, register long size, register VALUE val)
+ {
+@@ -388,6 +417,7 @@ rb_ary_make_embedded(VALUE ary)
+         const VALUE *buf = ARY_HEAP_PTR(ary);
+         long len = ARY_HEAP_LEN(ary);
+ 
++        ary_clear_object_storage(ary);
+         FL_SET_EMBED(ary);
+         ARY_SET_EMBED_LEN(ary, len);
+ 
+@@ -427,6 +457,7 @@ ary_resize_capa(VALUE ary, long capacity)
+             const VALUE *ptr = ARY_HEAP_PTR(ary);
+ 
+             if (len > capacity) len = capacity;
++            ary_clear_object_storage(ary);
+             MEMCPY((VALUE *)RARRAY(ary)->as.ary, ptr, VALUE, len);
+             ary_heap_free_ptr(ary, ptr, old_capa);
+ 
+@@ -497,6 +528,7 @@ rb_ary_reset(VALUE ary)
+         rb_ary_unshare(ary);
+     }
+ 
++    ary_clear_object_storage(ary);
+     FL_SET_EMBED(ary);
+     ARY_SET_EMBED_LEN(ary, 0);
+ }
+@@ -547,6 +579,7 @@ rb_ary_cancel_sharing(VALUE ary)
+         if (len <= ary_embed_capa(ary)) {
+             const VALUE *ptr = ARY_HEAP_PTR(ary);
+             FL_UNSET_SHARED(ary);
++            ary_clear_object_storage(ary);
+             FL_SET_EMBED(ary);
+             MEMCPY((VALUE *)ARY_EMBED_PTR(ary), ptr, VALUE, len);
+             rb_ary_decrement_share(shared_root);
+@@ -1459,6 +1492,7 @@ rb_ary_pop(VALUE ary)
+ 
+     VALUE obj = RARRAY_AREF(ary, n - 1);
+ 
++    ary_clear_removed(ary, n - 1, 1);
+     ARY_SET_LEN(ary, n - 1);
+     ary_verify(ary);
+     return obj;
+@@ -1505,6 +1539,7 @@ rb_ary_pop_m(int argc, VALUE *argv, VALUE ary)
+ 
+     rb_ary_modify_check(ary);
+     result = ary_take_first_or_last(argc, argv, ary, ARY_TAKE_LAST);
++    ary_clear_removed(ary, RARRAY_LEN(ary) - RARRAY_LEN(result), RARRAY_LEN(result));
+     ARY_INCREASE_LEN(ary, -RARRAY_LEN(result));
+     ary_verify(ary);
+     return result;
+@@ -1598,6 +1633,7 @@ rb_ary_behead(VALUE ary, long n)
+             RARRAY_PTR_USE(ary, ptr, {
+                 MEMMOVE(ptr, ptr + n, VALUE, RARRAY_LEN(ary) - n);
+             }); /* WB: no new reference */
++            ary_clear_removed(ary, RARRAY_LEN(ary) - n, n);
+             ARY_INCREASE_LEN(ary, -n);
+             ary_verify(ary);
+             return ary;
+@@ -2358,6 +2394,7 @@ rb_ary_splice(VALUE ary, long beg, long len, const VALUE *rptr, long rlen, int s
+             RARRAY_PTR_USE(ary, ptr,
+                                      MEMMOVE(ptr + beg + rlen, ptr + beg + len,
+                                              VALUE, olen - (beg + len)));
++            ary_clear_removed(ary, alen, olen - alen);
+             ARY_SET_LEN(ary, alen);
+         }
+         if (rlen > 0) {
+@@ -2391,6 +2428,7 @@ rb_ary_set_len(VALUE ary, long len)
+     if (len > (capa = (long)ARY_CAPA(ary))) {
+         rb_bug("probable buffer overflow: %ld for %ld", len, capa);
+     }
++    ary_clear_removed(ary, len, RARRAY_LEN(ary) - len);
+     ARY_SET_LEN(ary, len);
+ }
+ 
+@@ -2413,6 +2451,7 @@ rb_ary_resize(VALUE ary, long len)
+         ARY_SET_LEN(ary, len);
+     }
+     else if (ARY_EMBED_P(ary)) {
++        ary_clear_removed(ary, len, olen - len);
+         ARY_SET_EMBED_LEN(ary, len);
+     }
+     else if (len <= ary_embed_capa(ary)) {
+@@ -2420,6 +2459,7 @@ rb_ary_resize(VALUE ary, long len)
+         long ptr_capa = ARY_HEAP_SIZE(ary);
+         bool is_malloc_ptr = !ARY_SHARED_P(ary);
+ 
++        ary_clear_object_storage(ary);
+         FL_SET_EMBED(ary);
+ 
+         MEMCPY((VALUE *)ARY_EMBED_PTR(ary), ptr, VALUE, len); /* WB: no new reference */
+@@ -2428,6 +2468,7 @@ rb_ary_resize(VALUE ary, long len)
+         if (is_malloc_ptr) ruby_sized_xfree((void *)ptr, ptr_capa);
+     }
+     else {
++        ary_clear_removed(ary, len, olen - len);
+         if (olen > len + ARY_DEFAULT_SIZE) {
+             size_t new_capa = ary_heap_realloc(ary, len);
+             ARY_SET_CAPA(ary, new_capa);
+@@ -4050,6 +4091,7 @@ select_bang_ensure(VALUE a)
+                     MEMMOVE(ptr + i2, ptr + i1, VALUE, tail);
+                 });
+         }
++        ary_clear_removed(ary, i2 + tail, len - i2 - tail);
+         ARY_SET_LEN(ary, i2 + tail);
+     }
+     return ary;
+@@ -4119,6 +4161,7 @@ ary_resize_smaller(VALUE ary, long len)
+ {
+     rb_ary_modify(ary);
+     if (RARRAY_LEN(ary) > len) {
++        ary_clear_removed(ary, len, RARRAY_LEN(ary) - len);
+         ARY_SET_LEN(ary, len);
+         if (len * 2 < ARY_CAPA(ary) &&
+             ARY_CAPA(ary) > ARY_DEFAULT_SIZE) {
+@@ -4235,6 +4278,7 @@ rb_ary_delete_at(VALUE ary, long pos)
+     RARRAY_PTR_USE(ary, ptr, {
+         MEMMOVE(ptr+pos, ptr+pos+1, VALUE, len-pos-1);
+     });
++    ary_clear_removed(ary, len - 1, 1);
+     ARY_INCREASE_LEN(ary, -1);
+     ary_verify(ary);
+     return del;
+@@ -4853,10 +4897,12 @@ rb_ary_clear(VALUE ary)
+     rb_ary_modify_check(ary);
+     if (ARY_SHARED_P(ary)) {
+         rb_ary_unshare(ary);
++        ary_clear_object_storage(ary);
+         FL_SET_EMBED(ary);
+         ARY_SET_EMBED_LEN(ary, 0);
+     }
+     else {
++        ary_clear_removed(ary, 0, RARRAY_LEN(ary));
+         ARY_SET_LEN(ary, 0);
+         if (ARY_DEFAULT_SIZE * 2 < ARY_CAPA(ary)) {
+             ary_resize_capa(ary, ARY_DEFAULT_SIZE * 2);
+@@ -6452,9 +6498,11 @@ rb_ary_uniq_bang(VALUE ary)
+         return Qnil;
+     }
+     rb_ary_modify_check(ary);
++    ary_clear_removed(ary, 0, RARRAY_LEN(ary));
+     ARY_SET_LEN(ary, 0);
+     if (ARY_SHARED_P(ary)) {
+         rb_ary_unshare(ary);
++        ary_clear_object_storage(ary);
+         FL_SET_EMBED(ary);
+     }
+     ary_resize_capa(ary, hash_size);

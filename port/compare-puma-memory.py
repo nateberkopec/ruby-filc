@@ -10,7 +10,7 @@ args = parser.parse_args()
 stock = json.loads(args.stock.read_text())
 filc = json.loads(args.filc.read_text())
 for name, result in (('stock', stock), ('Fil-C', filc)):
-    if result.get('schema_version') != 2 or 'performance' not in result['metrics']:
+    if result.get('schema_version') != 3 or 'performance' not in result['metrics']:
         raise SystemExit(f'{name}: missing current performance evidence; rerun both runtimes with the current driver')
     identity = result['identity']
     if not identity['cpus'] or not identity['client_cpus'] or set(identity['cpus']) & set(identity['client_cpus']):
@@ -30,7 +30,10 @@ if stock['requests_checked'] != filc['requests_checked']:
 for key in ('cpus', 'client_cpus', 'load_generator', 'driver_sha256', 'workload_sha256', 'limits', 'python', 'platform'):
     if stock['identity'][key] != filc['identity'][key]:
         raise SystemExit(f'incomparable measurement: {key}')
-for key in ('ruby', 'puma', 'nio4r', 'threads', 'yjit', 'zjit'):
+# Keep the full description for provenance, but a patched source worktree has
+# a different revision/date from the release even when its Ruby version matches.
+for key in ('ruby_version', 'ruby_engine', 'ruby_patchlevel', 'ruby_platform',
+            'puma', 'nio4r', 'threads', 'yjit', 'zjit'):
     if stock['identity']['server'][key] != filc['identity']['server'][key]:
         raise SystemExit(f'incomparable server: {key}')
 failed = False
